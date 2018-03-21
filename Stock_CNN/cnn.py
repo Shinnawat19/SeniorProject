@@ -73,7 +73,7 @@ def plot_stock(stock_datas):
        
 def load_stock_data(symbol):
     stock_data = []
-    with open(symbol + '.BK.csv', 'r') as csv_file:
+    with open('./SET50/' + symbol + '.BK.csv', 'r') as csv_file:
         file_data = csv.reader(csv_file, delimiter=',')
         file_data = list(file_data)[1:]
         for row in file_data:
