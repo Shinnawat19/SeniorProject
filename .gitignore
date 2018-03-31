@@ -2,5 +2,6 @@
 *.png
 /Stock_CNN/SET50
 /Stock_CNN/.ipynb_checkpoints
+/Stock_CNN/.h5
 /Stock_LSTM/SET50
 /Stock_LSTM/.ipynb_checkpoints
