@@ -1,6 +1,6 @@
 /.vscode
 *.png
 /Stock_CNN/SET50
-/Stock_CNN/.ipynb_checkpoints
+*.ipynb_checkpoints
+*.h5
 /Stock_LSTM/SET50
-/Stock_LSTM/.ipynb_checkpoints
