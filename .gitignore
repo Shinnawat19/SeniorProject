@@ -1,5 +1,4 @@
 /.vscode
 *.png
-/Stock_CNN/SET50
 *.ipynb_checkpoints
 *.h5
