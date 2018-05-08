@@ -1,122 +1,178 @@
 import gym
 from gym import error, spaces, utils
 from gym.utils import seeding
+import numpy as np
 from keras.models import load_model
 import pandas as pd
 import numpy as np
 import os, json
+import math
 
 class StockEnv(gym.Env):
-	metadata = {'render.modes': ['human']}
-
 	def __init__(self):
-		super(StockEnv, self).__init__()
-		self.action_space = ['b', 'h', 's']
-		self.n_actions = len(self.action_space)
-		self.n_features = 2
-		self.build_stock_market()
-		amount = 100
+		self.sym = pd.read_csv('PTT.BK.csv')
+		self.i = 0
+		self.market = self.sym.iloc[[0]]
+		self.market.insert(5, "Average",  math.ceil( int(((self.market['Low'] + self.market['High']) / 2)) *4 ) /4 )
+		self.balance = 100000
+		self.portfolio = pd.DataFrame(None , columns = [
+		"Date","Symbol",'Volume',"Average Price" ,"Market Price","Amount (Price)" , "Market Value","Unrealized P/L","%Unrealized P/L"])
+		self.capital_n0 = self.balance
+		self.state = np.array([self.balance, self.portfolio, self.market])
+		self.action_space = spaces.Discrete(3)
+		self.observation_space = spaces.Discrete(len(self.state))
 
 	def load_model(self, model):
-		self.model = load_model(model + '.h5')
+			self.model = load_model(model + '.h5')
 
-	def build_stock_market(self):
-		self.sym = pd.read_csv("PTT.BK.csv")
-		self.i = 60
-		self.market = self.sym.iloc[0: self.i]
-		self.balance = 1000000
-		self.equity = self.balance
-		self.portfolio = pd.DataFrame(None , columns = 
-		[
-		"Date",
-		"Symbol",
-		'Volume',
-		"Average Price",
-		"Market Price",
-		"Amount (Price)",
-		"Market Value",
-		"Unrealized P/L",
-		"%Unrealized P/L"
-		])
-		# self.reward = 0
-	def step(self, action):
-		if self.market.isnull().values.any():
-			print("Today Maket Close")
-		else:
-			if action == 0: #BUY
-				averageprice = self.market['Open'][self.i]
-				amountprice = self.market['Open'][self.i] * amount
-				marketprice = self.market['Open'][self.i]
-				marketvalue = self.market['Open'][self.i] * amount
-				unrealized = amountprice - marketvalue
-				perunrealized = (unrealized / amountprice)*100
-				if self.balance < amountprice:
-					print("Not Enough Money")
-				else:
-					self.balance = self.balance - amountprice
-					self.equity = self.balance
-					self.portfolio = self.portfolio.append(
-					{'Date' : self.market['Date'][self.i] , "Symbol" : 'PTT' ,'Volume' : amount, 'Average Price' : averageprice ,'Market Price' : marketprice ,
-					'Amount (Price)' : amountprice ,"Market Value" : marketvalue,"Unrealized P/L":unrealized,"%Unrealized P/L":perunrealized} 
-					, ignore_index=True)
-					self.equity = self.equity + self.portfolio['Unrealized P/L'].sum()
-					print("Success")
-			elif action == 1: #SELL
-				self.balance = self.equity
-				self.portfolio = pd.DataFrame(None , columns = [
-				"Date","Symbol",'Volume',"Average Price" ,"Market Price","Amount (Price)" , "Market Value","Unrealized P/L","%Unrealized P/L"
-				])
-				self.equity = self.balance
-			else: #HOLD
-				print('Hold')
-				pass
-
-
-
-			if self.equity - self.balance > 0:
-				reward = 1
-			elif self.equity == self.balance:
-				reward = 0
-			else:
-				reward = -1
-
-        
-			if self.balance == 0:
-				done = True
-			else:
-				done = False
-			return reward, done
-			
 	def reset(self):
 		self.i = 0
 		self.market = self.sym.iloc[[0]]
+		self.resetPortfolio()
+		self.market.insert(5, "Average",  math.ceil( int(((self.market['Low'] + self.market['High']) / 2)) *4 ) /4 )
 		self.balance = 100000
-		self.equity = self.balance
-		self.portfolio = pd.DataFrame(None , columns = 
-			[
-		    "Date",
-		    "Symbol",
-		    'Volume',
-		    "Average Price",
-		    "Market Price","Amount (Price)",
-		    "Market Value",
-		    "Unrealized P/L",
-		    "%Unrealized P/L"
-			])
-		return (self.balance , self.equity , self.portfolio)
+		self.reward = 0
+		self.capital_n0 = self.balance
 
-	def render(self, mode='human', close=False):
+
+	def resetPortfolio(self):
+		self.portfolio = pd.DataFrame(None , columns = [
+			"Date",
+			"Symbol",
+			'Volume',
+			"Average Price",
+			"Market Price",
+			"Amount (Price)", 
+			"Market Value",
+			"Unrealized P/L",
+			"%Unrealized P/L"
+		])
+
+	def isTodayClose(self):
+		return self.market.isnull().values.any()
+
+	def buy(self, amount):
+		amountPrice = self.market['Average'][self.i] * amount
+		if self.isBalanceEnough(amountPrice):
+			commission = amountPrice * (0.1578/100)
+			vat = commission * (7/100)
+			self.balance -= amountPrice + commission + vat
+			self.equilty = self.balance
+			self.appendPortfolio(amount)
+			# print("Success")
+		else:
+			# print("Not Enough Money !!!\n")
+			pass
+
+	def appendPortfolio(self, amount):
+		portfolio = self.createPortfolioObject(amount)
+		self.portfolio = self.portfolio.append(portfolio, ignore_index=True)
+        
+	def createPortfolioObject(self, amount):
+		averagePrice = marketPrice = self.market['Average'][self.i]
+		marketValue = amountValue = averagePrice * amount
+
+		return {
+			'Date': self.market['Date'][self.i] ,
+			"Symbol": 'PTT',
+			'Volume': amount,
+			'Average Price': averagePrice,
+			'Market Price': marketPrice,
+			'Amount (Price)': amountValue ,
+			"Market Value": marketValue,
+			"Unrealized P/L": 0,
+			"%Unrealized P/L": 0
+		}
+
+	def sell(self):
+		if not self.isPortfolioEmpty() :
+			self.balance = self.balance + self.portfolio['Market Value'].sum()
+			self.portfolio.drop(self.portfolio.index, inplace=True)
+			# self.portfolio.drop(self.portfolio.index[order] , inplace=True)
+			# self.portfolio.index = range(len(self.portfolio))
+		else:
+			print("No Order !!!\n")
+
+	# def sell(self , order):
+	# 	if not self.isPortfolioEmpty() :
+	# 		self.balance = self.balance + self.portfolio['Market Value'][order]
+	# 		self.portfolio.drop(self.portfolio.index[order] , inplace=True)
+	# 		self.portfolio.index = range(len(self.portfolio))
+	# 	else:
+	# 		print("No Order !!!\n")
+
+	def isBalanceEnough(self, amountPrice):
+		return self.balance > amountPrice
+
+	def setReward(self):
+		capital_n1 = self.balance + self.portfolio['Market Value'].sum()
+
+		if capital_n1 - self.capital_n0 > 0 :
+			self.reward +=  1#(((self.capital_n0 * 100) /capital_n1 ) - 100 )  
+
+		elif capital_n1 - self.capital_n0 == 0:
+			self.reward = self.reward
+
+		else:
+			self.reward -= 1
+
+		self.capital_n0 = capital_n1
+
+	def step(self, action):
+		if self.isTodayClose():
+			# print("Today Maket Close !!!\n")
+			return
+		if action == 0:
+			self.buy(1000) #buy amout 100 volume
+		elif action == 1:
+			self.sell() 
+		else:
+			# print("HOLD")
+			pass
+            
+		if self.balance <= 0:
+			done = True
+		else:
+			done = False
+
+		self.state = np.array([self.portfolio,self.market,self.balance])
+		return (self.state,self.reward,done)
+
+	def updatePortfolio(self):
+		self.portfolio['Market Price'] = self.market['Average'][self.i]
+		self.portfolio['Market Value'] = self.market['Average'][self.i] * self.portfolio['Volume']
+		self.portfolio['Unrealized P/L'] =  self.portfolio['Market Value'] - self.portfolio['Amount (Price)']
+		self.portfolio['%Unrealized P/L'] = (self.portfolio['Unrealized P/L'] /self.portfolio['Amount (Price)'])*100
+
+	def nextday(self):
+		self.i += 1
+		self.market = self.sym.iloc[[self.i]]
+		if self.isTodayClose():
+			# print("Today Maket Close !!!\n ")
+			self.nextday()
+		else:
+			# print("Today Maket Open\n")
+			self.market.insert(5, "Average",  math.ceil( int(((self.market['Low'] + self.market['High']) / 2)) *4 ) /4 )
+			self.updatePortfolio()
+			self.setReward()
+
+	def isPortfolioEmpty(self):
+		return self.portfolio.empty
+
+	def render(self):
 		print("STOCK MARKET \n")
 		print(self.market.to_string())
-		print("-----------------------------------------------------------------------------------")
+		print("----------------------------------------------------------------------------------------------------------------------------------------------------")
 		print("\nPORTFOLIO\n")
-		if self.portfolio.empty:
+		if self.isPortfolioEmpty():
 			print("")
-			print("\nCash " , self.balance ,"     Capital " , self.equity)
+			print("\nCash " , self.balance , "     Volume " , self.portfolio['Volume'].sum() , "     Current Price " , self.market['Average'][self.i] ,
+			  	  "     Equity " , self.portfolio['Market Value'].sum() , "     Capital " , self.balance + self.portfolio['Market Value'].sum(),'\n')
 		else:
 			print(self.portfolio.to_string())
-			print("\nCash " , self.balance , "     Volume " , self.portfolio['Volume'].sum() , "     Capital " , self.equity ,)
-
+			print("\nCash " , self.balance , "     Volume " , self.portfolio['Volume'].sum() , "     Current Price " , self.market['Average'][self.i] ,
+			      "     Equity " , self.portfolio['Market Value'].sum() , "     Capital " , self.balance + self.portfolio['Market Value'].sum(),'\n')
+			
 	def getObservation(self):
 		'''
 			Load models -> get 30 days data to predict for 30 days
@@ -165,3 +221,4 @@ class StockEnv(gym.Env):
 					element[i] = predict[index]
 
 		return test_data
+
