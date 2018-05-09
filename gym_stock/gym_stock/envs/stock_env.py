@@ -52,11 +52,11 @@ class StockEnv(gym.Env):
 		return self.market.isnull().values.any()
 
 	def buy(self, amount):
-		amountPrice = self.market['Average'][self.i] * amount
-		if self.isBalanceEnough(amountPrice):
-			commission = amountPrice * (0.1578/100)
-			vat = commission * (7/100)
-			self.balance -= amountPrice + commission + vat
+		stock_price = self.market['Average'][self.i] * amount
+		stock_price_with_commission = stock_price * (1 + 0.001578 * 1.07)
+
+		if self.isBalanceEnough(stock_price_with_commission):
+			self.balance -= stock_price_with_commission
 			self.equilty = self.balance
 			self.appendPortfolio(amount)
 			# print("Success")
@@ -64,29 +64,10 @@ class StockEnv(gym.Env):
 			# print("Not Enough Money !!!\n")
 			pass
 
-	def appendPortfolio(self, amount):
-		portfolio = self.createPortfolioObject(amount)
-		self.portfolio = self.portfolio.append(portfolio, ignore_index=True)
-        
-	def createPortfolioObject(self, amount):
-		averagePrice = marketPrice = self.market['Average'][self.i]
-		marketValue = amountValue = averagePrice * amount
-
-		return {
-			'Date': self.market['Date'][self.i] ,
-			"Symbol": 'PTT',
-			'Volume': amount,
-			'Average Price': averagePrice,
-			'Market Price': marketPrice,
-			'Amount (Price)': amountValue ,
-			"Market Value": marketValue,
-			"Unrealized P/L": 0,
-			"%Unrealized P/L": 0
-		}
-
 	def sell(self):
-		if not self.isPortfolioEmpty() :
-			self.balance = self.balance + self.portfolio['Market Value'].sum()
+		if not self.isPortfolioEmpty():
+			sold_stock_price = self.portfolio['Market Value'].sum() * (1 - 0.001578 * 1.07)
+			self.balance = self.balance + sold_stock_price
 			self.portfolio.drop(self.portfolio.index, inplace=True)
 			# self.portfolio.drop(self.portfolio.index[order] , inplace=True)
 			# self.portfolio.index = range(len(self.portfolio))
@@ -104,16 +85,33 @@ class StockEnv(gym.Env):
 	def isBalanceEnough(self, amountPrice):
 		return self.balance > amountPrice
 
+	def appendPortfolio(self, amount):
+		portfolio = self.createPortfolioObject(amount)
+		self.portfolio = self.portfolio.append(portfolio, ignore_index=True)
+        
+	def createPortfolioObject(self, amount):
+		averagePrice = marketPrice = self.market['Average'][self.i]
+		marketValue = amountValue = averagePrice * amount
+
+		return {
+			'Date': self.market['Date'][self.i],
+			"Symbol": 'PTT',
+			'Volume': amount,
+			'Average Price': averagePrice,
+			'Market Price': marketPrice,
+			'Amount (Price)': amountValue ,
+			"Market Value": marketValue,
+			"Unrealized P/L": 0,
+			"%Unrealized P/L": 0
+		}
+
 	def setReward(self):
 		capital_n1 = self.balance + self.portfolio['Market Value'].sum()
 
 		if capital_n1 - self.capital_n0 > 0 :
 			self.reward +=  1#(((self.capital_n0 * 100) /capital_n1 ) - 100 )  
 
-		elif capital_n1 - self.capital_n0 == 0:
-			self.reward = self.reward
-
-		else:
+		elif capital_n1 - self.capital_n0 < 0:
 			self.reward -= 1
 
 		self.capital_n0 = capital_n1
@@ -125,18 +123,12 @@ class StockEnv(gym.Env):
 		if action == 0:
 			self.buy(1000) #buy amout 100 volume
 		elif action == 1:
-			self.sell() 
-		else:
-			# print("HOLD")
-			pass
-            
-		if self.balance <= 0:
-			done = True
-		else:
-			done = False
+			self.sell()
+        
+		done = self.balance <= 0
 
 		self.state = np.array([self.portfolio,self.market,self.balance])
-		return (self.state,self.reward,done)
+		return (self.state, self.reward, done)
 
 	def updatePortfolio(self):
 		self.portfolio['Market Price'] = self.market['Average'][self.i]
