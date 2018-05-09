@@ -9,27 +9,44 @@ import os, json
 import math
 
 class StockEnv(gym.Env):
+	'''
+		36 stocks
+
+		observation => 36 * 30 (current stage) + 36 (portfolio)
+		action => 36 * 3 => take action => [...] 36 actions
+
+		reset env must return init stage
+
+		getObservation return predicted 30 days of 36 stocks
+	'''
 	def __init__(self):
-		self.sym = pd.read_csv('PTT.BK.csv')
+		self.initialize_stock_data()
 		self.i = 0
-		self.market = self.sym.iloc[[0]]
-		self.market.insert(5, "Average",  math.ceil( int(((self.market['Low'] + self.market['High']) / 2)) *4 ) /4 )
+		self.market = [symbol.iloc[: 60 + self.i] for symbol in self.symbols]
 		self.balance = 100000
-		self.portfolio = pd.DataFrame(None , columns = [
-		"Date","Symbol",'Volume',"Average Price" ,"Market Price","Amount (Price)" , "Market Value","Unrealized P/L","%Unrealized P/L"])
+		self.portfolio = pd.DataFrame(None , columns = ["Date","Symbol",'Volume',"Average Price" ,"Market Price","Amount (Price)" , "Market Value","Unrealized P/L","%Unrealized P/L"])
 		self.capital_n0 = self.balance
 		self.state = np.array([self.balance, self.portfolio, self.market])
 		self.action_space = spaces.Discrete(3)
 		self.observation_space = spaces.Discrete(len(self.state))
 
+	def initialize_stock_data(self):
+		list_stock = os.listdir('../../../Data set/SET50')
+		symbols = []
+		for stock in list_stock:
+			symbols.append(pd.read_csv('../../../Data set/SET50/' + stock))
+
+		self.symbols = symbols
+
 	def load_model(self, model):
-			self.model = load_model(model + '.h5')
+		self.model = load_model(model + '.h5')
 
 	def reset(self):
+		# MUST return initial stage
 		self.i = 0
-		self.market = self.sym.iloc[[0]]
+		self.market = [symbol.iloc[: 60 + self.i] for symbol in self.symbols]
 		self.resetPortfolio()
-		self.market.insert(5, "Average",  math.ceil( int(((self.market['Low'] + self.market['High']) / 2)) *4 ) /4 )
+		# self.market.insert(5, "Average",  math.ceil( int(((self.market['Low'] + self.market['High']) / 2)) *4 ) /4 )
 		self.balance = 100000
 		self.reward = 0
 		self.capital_n0 = self.balance
@@ -166,29 +183,23 @@ class StockEnv(gym.Env):
 			      "     Equity " , self.portfolio['Market Value'].sum() , "     Capital " , self.balance + self.portfolio['Market Value'].sum(),'\n')
 			
 	def getObservation(self):
-		'''
-			Load models -> get 30 days data to predict for 30 days
-
-			sample with one stock
-		'''
 		compared_moving_average = self.compared_with_moving_average()
-		
-		# waiting for 36 stocks
-
-		# predicts = self.predict_for_30_days(compared_moving_average)
-		# print(predicts)		
+		predicts = self.predict_for_30_days([compared_moving_average])
+		return predicts		
 
 	def compared_with_moving_average(self):
 		compared_moving_average = []
-		for i in range(30):
-			moving_average = (self.market[['Open', 'High', 'Low', 'Close']][i:30 + i].sum()/30).values.tolist()
-			current = self.market[['Open', 'High', 'Low', 'Close']][30 + i:30 + i + 1].values.tolist()
-			open = current[0][0] - moving_average[0]
-			high = current[0][1] - moving_average[1]
-			low = current[0][2] - moving_average[2]
-			close = current[0][3] - moving_average[3]
-			compared_moving_average.append([open, high, low, close])
-
+		for market in self.market:
+			temp = []
+			for i in range(30):
+				moving_average = (market[['Open', 'High', 'Low', 'Close']][self.i + i:self.i + 30 + i].sum()/30).values.tolist()
+				current = market[['Open', 'High', 'Low', 'Close']][self.i + 30 + i:self.i + 30 + i + 1].values.tolist()
+				open = current[0][0] - moving_average[0]
+				high = current[0][1] - moving_average[1]
+				low = current[0][2] - moving_average[2]
+				close = current[0][3] - moving_average[3]
+				temp.append([open, high, low, close])
+			compared_moving_average.append(temp)
 		return compared_moving_average
 
 	def predict_for_30_days(self, compared_moving_average):
