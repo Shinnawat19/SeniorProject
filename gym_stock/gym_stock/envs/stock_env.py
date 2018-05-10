@@ -21,14 +21,18 @@ class StockEnv(gym.Env):
 	'''
 	def __init__(self):
 		self.initialize_stock_data()
+		self.initialize_variable()
+		self.state = np.array([self.balance, self.portfolio, self.market])
+		self.action_space = spaces.Discrete(3) # [buy, sell, hold] for 36 stocks
+		self.observation_space = spaces.Discrete(len(self.state)) # 30 days prediction for 36 stocks including portfolio
+
+	def initialize_variable(self):
+		self.balance = 100000
+		self.capital_n0 self.balance
+		self.reward = 0
 		self.i = 0
 		self.market = [symbol.iloc[: 60 + self.i] for symbol in self.symbols]
-		self.balance = 100000
-		self.portfolio = pd.DataFrame(None , columns = ["Date","Symbol",'Volume',"Average Price" ,"Market Price","Amount (Price)" , "Market Value","Unrealized P/L","%Unrealized P/L"])
-		self.capital_n0 = self.balance
-		self.state = np.array([self.balance, self.portfolio, self.market])
-		self.action_space = spaces.Discrete(3)
-		self.observation_space = spaces.Discrete(len(self.state))
+		self.resetPortfolio()
 
 	def initialize_stock_data(self):
 		list_stock = os.listdir('../../../Data set/SET50')
@@ -43,27 +47,10 @@ class StockEnv(gym.Env):
 
 	def reset(self):
 		# MUST return initial stage
-		self.i = 0
-		self.market = [symbol.iloc[: 60 + self.i] for symbol in self.symbols]
-		self.resetPortfolio()
-		# self.market.insert(5, "Average",  math.ceil( int(((self.market['Low'] + self.market['High']) / 2)) *4 ) /4 )
-		self.balance = 100000
-		self.reward = 0
-		self.capital_n0 = self.balance
-
+		self.initialize_variable()
 
 	def resetPortfolio(self):
-		self.portfolio = pd.DataFrame(None , columns = [
-			"Date",
-			"Symbol",
-			'Volume',
-			"Average Price",
-			"Market Price",
-			"Amount (Price)", 
-			"Market Value",
-			"Unrealized P/L",
-			"%Unrealized P/L"
-		])
+		self.portfolio = pd.DataFrame(None , columns = ["Date", "Symbol", "Volume", "Average Price", "Market Price", "Amount (Price)", "Market Value", "Unrealized P/L", "%Unrealized P/L"])
 
 	def isTodayClose(self):
 		return self.market.isnull().values.any()
@@ -90,14 +77,6 @@ class StockEnv(gym.Env):
 			# self.portfolio.index = range(len(self.portfolio))
 		else:
 			print("No Order !!!\n")
-
-	# def sell(self , order):
-	# 	if not self.isPortfolioEmpty() :
-	# 		self.balance = self.balance + self.portfolio['Market Value'][order]
-	# 		self.portfolio.drop(self.portfolio.index[order] , inplace=True)
-	# 		self.portfolio.index = range(len(self.portfolio))
-	# 	else:
-	# 		print("No Order !!!\n")
 
 	def isBalanceEnough(self, amountPrice):
 		return self.balance > amountPrice
