@@ -2,3 +2,5 @@
 *.png
 *.ipynb_checkpoints
 *.h5
+*.pyc
+__pycache__/
