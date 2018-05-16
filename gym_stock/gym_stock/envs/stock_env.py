@@ -20,16 +20,15 @@ class StockEnv(gym.Env):
 		getObservation return predicted 30 days of 36 stocks
 	'''
 	def __init__(self):
-
 		self.initialize_stock_data()
 		self.initialize_variable()
 		# self.action_space = spaces.Discrete(3) # [buy, sell, hold] for 36 stocks
+		self.model_name = 'cnn'
+		self.load_model(self.model_name)
+		print('Prediction with Convs')
 		self.actions = np.zeros(shape=(36,))
 		self.action_space = np.array([0, 1, 2])
-		self.observation_space = self.market
-
-
-
+		self.observation_space = self.getObservation()
 
 	def initialize_variable(self):
 		self.balance = 1000000
@@ -37,7 +36,7 @@ class StockEnv(gym.Env):
 		self.capital_n0 = self.balance
 		self.reward = 0
 		self.i = 0
-		self.market = [symbol.iloc[: 60 + self.i] for symbol in self.symbols]
+		self.market = [symbol.iloc[self.i: 60 + self.i + 1] for symbol in self.symbols]
 		# self.market = self.sym.iloc[: 60 + self.i]
 		self.resetPortfolio()
 		self.capital = self.balance + self.portfolio['Market Value'].sum()
@@ -46,11 +45,10 @@ class StockEnv(gym.Env):
 
 
 	def initialize_stock_data(self):
-		list_stock = os.listdir('../../../Data set/SET50')
+		list_stock = os.listdir('../../../Data set/SET50_OHLC')
 		symbols = []
 		for stock in list_stock:
-			temp = pd.read_csv('../../../Data set/SET50/' + stock)
-			temp.insert(5, "Average",  round((temp['Low'] + temp['High']) / 2))
+			temp = pd.read_csv('../../../Data set/SET50_OHLC/' + stock)
 			symbols.append(temp)
 
 		self.symbols = symbols
@@ -61,7 +59,7 @@ class StockEnv(gym.Env):
 	def reset(self):
 		# MUST return initial stage
 		self.initialize_variable()
-		return self.market
+		return self.getObservation()
 
 	def resetPortfolio(self):
 		self.portfolio = pd.DataFrame(None , columns = ["Date", "Symbol", "Volume", "Average Price", "Market Price", "Amount (Price)", "Market Value", "Unrealized P/L", "%Unrealized P/L"])
@@ -88,7 +86,7 @@ class StockEnv(gym.Env):
 
 			self.setReward()
 
-			return self.market, self.reward, self.done,{}
+			return self.getObservation(), self.reward, self.done,{}
 
 	def buy(self, amount):
 		stock_price = self.market['Average'][self.i] * amount
@@ -161,7 +159,7 @@ class StockEnv(gym.Env):
 	def nextday(self):
 		if self.i + 60 < self.sym.shape[0]-1:
 			self.i += 30
-			self.market = self.sym.iloc[self.i: 60 + self.i]
+			self.market = self.sym.iloc[self.i: 60 + self.i + 1]
 
 			if self.isTodayClose():
 				# print("Today Maket Close !!!\n ")
@@ -195,20 +193,23 @@ class StockEnv(gym.Env):
 	def getObservation(self):
 		compared_moving_average = self.compared_with_moving_average()
 		predicts = self.predict_for_30_days([compared_moving_average])
-		return predicts		
+		return np.asarray(predicts)		
 
 	def compared_with_moving_average(self):
 		compared_moving_average = []
 		for market in self.market:
 			temp = []
 			for i in range(30):
-				moving_average = (market[['Open', 'High', 'Low', 'Close']][self.i + i:self.i + 30 + i].sum()/30).values.tolist()
-				current = market[['Open', 'High', 'Low', 'Close']][self.i + 30 + i:self.i + 30 + i + 1].values.tolist()
+				moving_average = (market[['Open', 'High', 'Low', 'Close']][ i:30 + i].sum()/30).values.tolist()
+				current = market[['Open', 'High', 'Low', 'Close']][30 + i: 30 + i + 1].values.tolist()
 				open = current[0][0] - moving_average[0]
 				high = current[0][1] - moving_average[1]
 				low = current[0][2] - moving_average[2]
 				close = current[0][3] - moving_average[3]
-				temp.append([open, high, low, close])
+				if self.model_name == 'lstm':
+					temp = temp + [open, high, low, close]
+				else:
+					temp.append([open, high, low, close])
 			compared_moving_average.append(temp)
 		return compared_moving_average
 
@@ -220,7 +221,8 @@ class StockEnv(gym.Env):
 			predicts.append(predict[0])
 			test_data = self.find_new_test_data(test_data, predict[0])
 
-		return predicts
+		predicts = np.asarray(predicts)
+		return predicts.T
 
 	def find_new_test_data(self, test_data, predict):
 		for (index, element) in enumerate(test_data[0]):
