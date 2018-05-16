@@ -20,25 +20,38 @@ class StockEnv(gym.Env):
 		getObservation return predicted 30 days of 36 stocks
 	'''
 	def __init__(self):
+
 		self.initialize_stock_data()
 		self.initialize_variable()
-		self.state = np.array([self.balance, self.portfolio, self.market])
-		self.action_space = spaces.Discrete(3) # [buy, sell, hold] for 36 stocks
-		self.observation_space = spaces.Discrete(len(self.state)) # 30 days prediction for 36 stocks including portfolio
+		# self.action_space = spaces.Discrete(3) # [buy, sell, hold] for 36 stocks
+		self.actions = np.zeros(shape=(36,))
+		self.action_space = np.array([0, 1, 2])
+		self.observation_space = self.market
+
+
+
 
 	def initialize_variable(self):
-		self.balance = 100000
-		self.capital_n0 self.balance
+		self.balance = 1000000
+		self.lost = self.balance / 10
+		self.capital_n0 = self.balance
 		self.reward = 0
 		self.i = 0
 		self.market = [symbol.iloc[: 60 + self.i] for symbol in self.symbols]
+		# self.market = self.sym.iloc[: 60 + self.i]
 		self.resetPortfolio()
+		self.capital = self.balance + self.portfolio['Market Value'].sum()
+		self.done = False
+
+
 
 	def initialize_stock_data(self):
 		list_stock = os.listdir('../../../Data set/SET50')
 		symbols = []
 		for stock in list_stock:
-			symbols.append(pd.read_csv('../../../Data set/SET50/' + stock))
+			temp = pd.read_csv('../../../Data set/SET50/' + stock)
+			temp.insert(5, "Average",  round((temp['Low'] + temp['High']) / 2))
+			symbols.append(temp)
 
 		self.symbols = symbols
 
@@ -48,12 +61,34 @@ class StockEnv(gym.Env):
 	def reset(self):
 		# MUST return initial stage
 		self.initialize_variable()
+		return self.market
 
 	def resetPortfolio(self):
 		self.portfolio = pd.DataFrame(None , columns = ["Date", "Symbol", "Volume", "Average Price", "Market Price", "Amount (Price)", "Market Value", "Unrealized P/L", "%Unrealized P/L"])
 
 	def isTodayClose(self):
 		return self.market.isnull().values.any()
+
+	def step(self, action):
+		if self.isTodayClose():
+			# print("Today Maket Close !!!\n")
+			return np.array(self.market['Average']), self.reward, self.done,{}
+		else:
+			if action == 0:
+				self.buy(1000) #buy amout 100 volume
+			elif action == 1:
+				self.sell()
+
+			self.capital = self.balance + self.portfolio['Market Value'].sum()
+
+			if self.capital < self.lost:
+				self.done = True
+			else:
+				self.done = False
+
+			self.setReward()
+
+			return self.market, self.reward, self.done,{}
 
 	def buy(self, amount):
 		stock_price = self.market['Average'][self.i] * amount
@@ -76,7 +111,8 @@ class StockEnv(gym.Env):
 			# self.portfolio.drop(self.portfolio.index[order] , inplace=True)
 			# self.portfolio.index = range(len(self.portfolio))
 		else:
-			print("No Order !!!\n")
+			# print("No Order !!!\n")
+			pass
 
 	def isBalanceEnough(self, amountPrice):
 		return self.balance > amountPrice
@@ -102,6 +138,7 @@ class StockEnv(gym.Env):
 		}
 
 	def setReward(self):
+		self.reward = 0
 		capital_n1 = self.balance + self.portfolio['Market Value'].sum()
 
 		if capital_n1 - self.capital_n0 > 0 :
@@ -112,19 +149,8 @@ class StockEnv(gym.Env):
 
 		self.capital_n0 = capital_n1
 
-	def step(self, action):
-		if self.isTodayClose():
-			# print("Today Maket Close !!!\n")
-			return
-		if action == 0:
-			self.buy(1000) #buy amout 100 volume
-		elif action == 1:
-			self.sell()
-        
-		done = self.balance <= 0
+		# print('REWARD     ',self.reward)
 
-		self.state = np.array([self.portfolio,self.market,self.balance])
-		return (self.state, self.reward, done)
 
 	def updatePortfolio(self):
 		self.portfolio['Market Price'] = self.market['Average'][self.i]
@@ -133,16 +159,21 @@ class StockEnv(gym.Env):
 		self.portfolio['%Unrealized P/L'] = (self.portfolio['Unrealized P/L'] /self.portfolio['Amount (Price)'])*100
 
 	def nextday(self):
-		self.i += 1
-		self.market = self.sym.iloc[[self.i]]
-		if self.isTodayClose():
-			# print("Today Maket Close !!!\n ")
-			self.nextday()
+		if self.i + 60 < self.sym.shape[0]-1:
+			self.i += 30
+			self.market = self.sym.iloc[self.i: 60 + self.i]
+
+			if self.isTodayClose():
+				# print("Today Maket Close !!!\n ")
+				self.nextday()
+			else:
+				# print("Today Maket Open\n")
+				self.market.insert(5, "Average",  round((self.market['Low'] + self.market['High']) / 2))
+				self.updatePortfolio()
+				# self.setReward()
 		else:
-			# print("Today Maket Open\n")
-			self.market.insert(5, "Average",  math.ceil( int(((self.market['Low'] + self.market['High']) / 2)) *4 ) /4 )
-			self.updatePortfolio()
-			self.setReward()
+			self.done = True
+		return self.done
 
 	def isPortfolioEmpty(self):
 		return self.portfolio.empty
