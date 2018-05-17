@@ -9,22 +9,28 @@ import math
 
 class StockEnv(gym.Env):
 	'''
-		36 stocks
+		portfolio for 36 stocks (initialize with 0 volumes)
 
-		observation => 36 * 30 (current stage) + 36 (portfolio)
-		action => 36 * 3 => take action => [...] 36 actions
+		market store only today
 
-		reset env must return init stage
-
-		getObservation return predicted 30 days of 36 stocks
+		portfolio
+			- date
+			- symbol
+			- volume
+			- market price
+			- average price
 	'''
 	def __init__(self):
+		self.SET50 = ['ADVANC', 'AOT', 'BANPU', 'BBL', 'BCP', 'BDMS', 'BEM', 'BH', 'BJC', 'BTS', 'CENTEL', 'CPALL', 'CPF', 'CPN', 'DTAC', 'EGCO', 'HMPRO', 'INTUCH', 'IRPC', 'KBANK', 'KCE', 'KKP', 'KTB', 'LH', 'MINT', 'PTT', 'PTTEP', 'ROBINS', 'SCB', 'SCC', 'TCAP', 'TISCO', 'TMB', 'TOP', 'TRUE', 'TU']
 		self.skip_days = 60
+
 		self.initialize_stock_data()
 		self.initialize_variable()
+
 		self.model_name = 'cnn'
 		self.predicted_data = np.loadtxt(self.model_name + 'Predictions.txt', dtype=float)
 		print('Prediction with ' + self.model_name)
+
 		self.actions = np.zeros(shape=(36,))
 		self.action_bound = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
 		self.observation_space = self.getObservation()
@@ -40,20 +46,20 @@ class StockEnv(gym.Env):
 		self.capital = self.balance + self.portfolio['Market Value'].sum()
 		self.done = False
 
-
-
 	def initialize_stock_data(self):
-		list_stock = os.listdir('../../../Data set/SET50_OHLC')
 		symbols = []
-		for stock in list_stock:
-			temp = pd.read_csv('../../../Data set/SET50_OHLC/' + stock)
+		for stock in self.SET50:
+			temp = pd.read_csv('../../../Data set/SET50_OHLC/' + stock + '.BK.csv')
 			symbols.append(temp)
 
 		self.symbols = symbols
 
+	def initialize_portfolio(self):
+		self.portfolio = [ self.createPortfolioObject(symbol) for symbol in self.SET50]
+
 	def reset(self):
-		# MUST return initial stage
 		self.initialize_variable()
+		# self.initialize_portfolio()
 		return self.getObservation()
 
 	def resetPortfolio(self):
@@ -114,20 +120,13 @@ class StockEnv(gym.Env):
 		portfolio = self.createPortfolioObject(amount)
 		self.portfolio = self.portfolio.append(portfolio, ignore_index=True)
         
-	def createPortfolioObject(self, amount):
-		averagePrice = marketPrice = self.market['Average'][0]
-		marketValue = amountValue = averagePrice * amount
-
+	def createPortfolioObject(self, symbol):
 		return {
-			'Date': self.market['Date'][0],
-			"Symbol": 'PTT',
-			'Volume': amount,
-			'Average Price': averagePrice,
-			'Market Price': marketPrice,
-			'Amount (Price)': amountValue ,
-			"Market Value": marketValue,
-			"Unrealized P/L": 0,
-			"%Unrealized P/L": 0
+			'Date': self.market[0]['Date'],
+			"Symbol": symbol,
+			'Volume': 0,
+			'Average Price': 0,
+			'Market Price': 0,
 		}
 
 	def setReward(self):
@@ -188,7 +187,8 @@ class StockEnv(gym.Env):
 	def getObservation(self):
 		observation = self.predicted_data[self.i: self.i + 30]
 		observation = observation.reshape(observation.shape[0] * observation.shape[1])	
-		# # including portfolio
-		balance = np.array([self.balance])
-		observation = np.append(observation, balance)
+		# # # including portfolio
+		# balance = np.array([self.balance])
+		# observation = np.append(observation, balance)
+		print(self.market[0]['Date'])
 		return observation
