@@ -14,22 +14,26 @@ class StockEnv(gym.Env):
 		self.BUY = 0
 		self.SELL = 1
 
-
 		self.initialize_stock_data()
 		self.initialize_variable()
 		self.initialize_portfolio()
 
-		self.model_name = 'cnn'
-		self.predicted_data = np.loadtxt(self.model_name + 'Predictions.txt', dtype=float)
-		print('Prediction with ' + self.model_name)
-
 		self.actions = np.zeros(shape=(36,))
 		self.action_bound = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
+
+	def load_model(self, model_name, is_train):
+		if is_train:
+			self.model_name = model_name
+		else:
+			self.model_name = model_name + 'Test'
+		self.predicted_data = np.loadtxt(self.model_name + 'Predictions.txt', dtype=float)
+		print('Prediction with ' + self.model_name)
 		self.observation_space = self.get_observation()
 
 	def initialize_variable(self):
 		self.balance = 1000000.
-		self.capital_n0 = self.capital = self.balance
+		self.capital_n0 = self.balance
+		self.capital = self.balance
 		self.reward = 0
 		self.i = 0
 		self.market = [symbol.iloc[self.i + self.skip_days: self.i + self.skip_days + 1] for symbol in self.symbols]
@@ -78,8 +82,7 @@ class StockEnv(gym.Env):
 				self.sell(index, action)
 
 		self.capital = self.balance + self.find_portfolio_sum()
-		print(self.balance)
-		self.next_day()
+		self.done = self.next_day()
 		self.set_reward()
 
 		return self.get_observation(), self.reward, self.done,{}
@@ -87,6 +90,7 @@ class StockEnv(gym.Env):
 	def buy(self, index, volume):
 		base_price = self.calculate_mean_open_close(index)
 		stock_price_with_commission = self.calculate_stock_price(self.BUY, base_price, volume)
+
 		if self.is_balance_enough(stock_price_with_commission):
 			self.balance = self.balance - stock_price_with_commission
 			old_volume = self.portfolio[index]['Volume']
@@ -100,7 +104,7 @@ class StockEnv(gym.Env):
 	def sell(self, index, percentage):
 		if not self.is_portfolio_empty(index):
 			old_volume = self.portfolio[index]['Volume']
-			sell_volume = round(old_volume * percentage)
+			sell_volume = abs(round(old_volume * percentage))
 			base_price = self.calculate_mean_open_close(index)
 			sold_stock_price = self.calculate_stock_price(self.SELL, base_price, sell_volume)
 
@@ -126,7 +130,6 @@ class StockEnv(gym.Env):
 	def find_portfolio_sum(self):
 		portfolio = [ stock['Volume'] * stock['Market Price'] for stock in self.portfolio]
 		portfolio = np.asarray(portfolio)
-
 		return np.sum(portfolio)
 
 	def is_balance_enough(self, amountPrice):
@@ -135,21 +138,16 @@ class StockEnv(gym.Env):
 	def set_reward(self):
 		capital_n1 = self.balance + self.find_portfolio_sum()
 
-		if capital_n1 - self.capital_n0 > 0 :
-			self.reward +=  1  
-
-		elif capital_n1 - self.capital_n0 < 0:
-			self.reward -= 1
+		self.reward = capital_n1 - self.capital_n0
 
 		self.capital_n0 = capital_n1
 		
 	def next_day(self):
-		if self.i + 60 < len(self.symbols[0])-1:
+		if self.i + self.skip_days < len(self.symbols[0]) - 30:
 			self.i += 30
 			self.market = [symbol.iloc[self.i + self.skip_days: self.i + self.skip_days + 1] for symbol in self.symbols]
 			self.update_date_and_market_price_portfolio() #fix
 		else:
-			print(self.i)
 			self.done = True
 		return self.done
 
@@ -164,12 +162,12 @@ class StockEnv(gym.Env):
 	def get_observation(self):
 		observation = self.predicted_data[self.i: self.i + 30]
 		observation = observation.reshape(observation.shape[0] * observation.shape[1])
+		
+		# portfolio = [ [stock['Volume'], stock['Average Price'], stock['Market Price']] for stock in self.portfolio]
+		# portfolio = np.asarray(portfolio)
+		# portfolio = portfolio.reshape(portfolio.shape[0] * portfolio.shape[1])
+		# observation = np.append(observation, portfolio)
 
-		portfolio = [ [stock['Volume'], stock['Average Price'], stock['Market Price']] for stock in self.portfolio]
-		portfolio = np.asarray(portfolio)
-		portfolio = portfolio.reshape(portfolio.shape[0] * portfolio.shape[1])
-		observation = np.append(observation, portfolio)
-
-		balance = np.array([self.balance])
-		observation = np.append(observation, balance)
+		# balance = np.array([self.balance])
+		# observation = np.append(observation, balance)
 		return observation
