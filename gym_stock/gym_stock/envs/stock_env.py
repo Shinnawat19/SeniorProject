@@ -14,6 +14,7 @@ class StockEnv(gym.Env):
 		self.BUY = 0
 		self.SELL = 1
 
+
 		self.initialize_stock_data()
 		self.initialize_variable()
 		self.initialize_portfolio()
@@ -57,9 +58,10 @@ class StockEnv(gym.Env):
 	def calculate_mean_open_close(self, index):
 		return (self.market[index].iloc[0]['Open'] + self.market[index].iloc[0]['Close'])/2
 
-	def update_date_and_market_price_portfolio(self, index):
-		self.portfolio[index]['Market Price'] = self.calculate_mean_open_close(index)
-		self.portfolio[index]['Date'] = self.market[index].iloc[0]['Date']
+	def update_date_and_market_price_portfolio(self):
+		for (index, portfolio) in enumerate(self.portfolio):
+			portfolio['Market Price'] = self.calculate_mean_open_close(index)
+			portfolio['Date'] = self.market[index].iloc[0]['Date']
 
 	def reset(self):
 		self.initialize_variable()
@@ -68,7 +70,7 @@ class StockEnv(gym.Env):
 
 	def step(self, actions):
 		max_volume = 1000
-		for (index, action) in enumurate(actions):
+		for (index, action) in enumerate(actions):
 			if action > 0:
 				volume = round(max_volume * action)
 				self.buy(index, volume)
@@ -76,7 +78,8 @@ class StockEnv(gym.Env):
 				self.sell(index, action)
 
 		self.capital = self.balance + self.find_portfolio_sum()
-		self.done = self.capital < 100000
+		print(self.balance)
+		self.next_day()
 		self.set_reward()
 
 		return self.get_observation(), self.reward, self.done,{}
@@ -84,7 +87,6 @@ class StockEnv(gym.Env):
 	def buy(self, index, volume):
 		base_price = self.calculate_mean_open_close(index)
 		stock_price_with_commission = self.calculate_stock_price(self.BUY, base_price, volume)
-
 		if self.is_balance_enough(stock_price_with_commission):
 			self.balance = self.balance - stock_price_with_commission
 			old_volume = self.portfolio[index]['Volume']
@@ -122,7 +124,7 @@ class StockEnv(gym.Env):
 		return (old_amount * new_amount) / (old_volume + new_volume)
 
 	def find_portfolio_sum(self):
-		portfolio = [ stock['Volume'] * stock['Market Price'] for stock in portfolio]
+		portfolio = [ stock['Volume'] * stock['Market Price'] for stock in self.portfolio]
 		portfolio = np.asarray(portfolio)
 
 		return np.sum(portfolio)
@@ -142,11 +144,12 @@ class StockEnv(gym.Env):
 		self.capital_n0 = capital_n1
 		
 	def next_day(self):
-		if self.i + 60 < self.sym.shape[0]-1:
+		if self.i + 60 < len(self.symbols[0])-1:
 			self.i += 30
 			self.market = [symbol.iloc[self.i + self.skip_days: self.i + self.skip_days + 1] for symbol in self.symbols]
-			self.update_date_and_market_price_portfolio()
+			self.update_date_and_market_price_portfolio() #fix
 		else:
+			print(self.i)
 			self.done = True
 		return self.done
 

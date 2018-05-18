@@ -1,54 +1,11 @@
-import gym
-import gym_stock
-env = gym.make('stock-v0')
-
-
-# observation = env.reset()
-# print(observation)
-# env.step(0)
-# env.render()
-# Episodes = 1
-# count = 0
-# done = False
-
-# action = env.action_space.sample()
-# for _ in range(Episodes):
-# 	observation = env.reset()
-# 	done = False
-# 	count = 0
-# 	while not done:
-# 		action = env.action_space.sample()# random
-# 		observation, reward, done = env.step(action)
-# 		env.render()
-# 		env.nextday()
-# 		if done:
-# 			print(reward)
-# 			print(count)
-
-
-"""
-Note: This is a updated version from my previous code,
-for the target network, I use moving average to soft replace target parameters instead using assign function.
-By doing this, it has 20% speed up on my machine (CPU).
-
-Deep Deterministic Policy Gradient (DDPG), Reinforcement Learning.
-DDPG is Actor Critic based algorithm.
-Pendulum example.
-
-View more on my tutorial page: https://morvanzhou.github.io/tutorials/
-
-Using:
-tensorflow 1.0
-gym 0.8.0
-"""
-
 import tensorflow as tf
 import numpy as np
 import gym
+import gym_stock    
 import time
 import matplotlib.pyplot as plt
-
-
+from ddpg import DDPG
+import random
 #####################  hyper parameters  ####################
 
 MAX_EPISODES = 200
@@ -60,155 +17,72 @@ TAU = 0.01      # soft replacement
 MEMORY_CAPACITY = 10000
 BATCH_SIZE = 32
 
-RENDER = False
-ENV_NAME = 'stock-v0'
-
-
-###############################  DDPG  ####################################
-
-
-class DDPG(object):
-    def __init__(self, a_dim, s_dim, a_bound,):
-        self.memory = np.zeros((MEMORY_CAPACITY, len(s_dim) * 2  + a_dim - 1), dtype=np.float32)
-        self.pointer = 0
-        self.sess = tf.Session()
-
-        self.a_dim, self.s_dim, self.a_bound = a_dim, s_dim, a_bound,
-        self.S = tf.placeholder(tf.float32, [None, s_dim], 's')
-        self.S_ = tf.placeholder(tf.float32, [None, s_dim], 's_')
-        self.R = tf.placeholder(tf.float32, [None, 1], 'r')
-
-        self.a = self._build_a(self.S,)
-        q = self._build_c(self.S, self.a, )
-        a_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='Actor')
-        c_params = tf.get_collection(tf.GraphKeys.TRAINABLE_VARIABLES, scope='Critic')
-        ema = tf.train.ExponentialMovingAverage(decay=1 - TAU)          # soft replacement
-
-        def ema_getter(getter, name, *args, **kwargs):
-            return ema.average(getter(name, *args, **kwargs))
-
-        target_update = [ema.apply(a_params), ema.apply(c_params)]      # soft update operation
-        a_ = self._build_a(self.S_, reuse=True, custom_getter=ema_getter)   # replaced target parameters
-        q_ = self._build_c(self.S_, a_, reuse=True, custom_getter=ema_getter)
-
-        a_loss = - tf.reduce_mean(q)  # maximize the q
-        self.atrain = tf.train.AdamOptimizer(LR_A).minimize(a_loss, var_list=a_params)
-
-        with tf.control_dependencies(target_update):    # soft replacement happened at here
-            q_target = self.R + GAMMA * q_
-            td_error = tf.losses.mean_squared_error(labels=q_target, predictions=q)
-            self.ctrain = tf.train.AdamOptimizer(LR_C).minimize(td_error, var_list=c_params)
-
-        self.sess.run(tf.global_variables_initializer())
-
-    def choose_action(self, s):
-        return self.sess.run(self.a, {self.S: s[np.newaxis, :]})[0]
-
-    def learn(self):
-        indices = np.random.choice(MEMORY_CAPACITY, size=BATCH_SIZE)
-        bt = self.memory[indices, :]
-        bs = bt[:, :self.s_dim]
-        ba = bt[:, self.s_dim: self.s_dim + self.a_dim]
-        br = bt[:, -self.s_dim - 1: -self.s_dim]
-        bs_ = bt[:, -self.s_dim:]
-
-        self.sess.run(self.atrain, {self.S: bs})
-        self.sess.run(self.ctrain, {self.S: bs, self.a: ba, self.R: br, self.S_: bs_})
-
-    def store_transition(self, s, a, r, s_):
-        transition = np.hstack((s, a, [r], s_))
-        index = self.pointer % MEMORY_CAPACITY  # replace the old memory with new memory
-        
-        # print(self.memory)
-        self.memory[index, :] = transition
-        self.pointer += 1
-
-    def _build_a(self, s, reuse=None, custom_getter=None):
-        trainable = True if reuse is None else False
-        with tf.variable_scope('Actor', reuse=reuse, custom_getter=custom_getter):
-            net = tf.layers.dense(s, 30, activation=tf.nn.relu, name='l1', trainable=trainable)
-            a = tf.layers.dense(net, self.a_dim, activation=tf.nn.tanh, name='a', trainable=trainable)
-            return tf.multiply(a, self.a_bound, name='scaled_a')
-
-    def _build_c(self, s, a, reuse=None, custom_getter=None):
-        trainable = True if reuse is None else False
-        with tf.variable_scope('Critic', reuse=reuse, custom_getter=custom_getter):
-            n_l1 = 30
-            w1_s = tf.get_variable('w1_s', [self.s_dim, n_l1], trainable=trainable)
-            w1_a = tf.get_variable('w1_a', [self.a_dim, n_l1], trainable=trainable)
-            b1 = tf.get_variable('b1', [1, n_l1], trainable=trainable)
-            net = tf.nn.relu(tf.matmul(s, w1_s) + tf.matmul(a, w1_a) + b1)
-            return tf.layers.dense(net, 1, trainable=trainable)  # Q(s,a)
-
-
 ###############################  training  ####################################
-import random
-env = gym.make(ENV_NAME)
+
+env = gym.make('stock-v0')
 env = env.unwrapped
 env.seed(1)
 
-
-s_dim = env.observation_space
 a_dim = env.actions.shape[0]
-a_bound = env.action_space.shape[0]
-
-
+a_bound = env.action_bound.high
+s_dim = env.observation_space.shape[0]
 
 ddpg = DDPG(a_dim, s_dim, a_bound)
 
-s = env.reset()
-s_, r, done, info = env.step(0)
+# add randomness to action selection for exploration
+var = 3  # control exploration
+t1 = time.time()
 
 
-# # add randomness to action selection for exploration
-# var = 3  # control exploration
-# t1 = time.time()
 
-# count = 0
+capital_all = []
+reward_all = []
+espisode = 1
 
-# capital_plot = []
+for i in range(espisode):
+    s = env.reset()
+    ep_reward = 0
+    day = 0
+    done = False
+    while not done:
 
+        a = ddpg.choose_action(s)    # add randomness to action selection for exploration
+        s_, r, done, info = env.step(a)
+        # env.render()
+        if done:
+          break
 
-# # print(env.actions)
-# # s = env.reset()
-# # a = ddpg.choose_action(s)
-# # print(a)
+        ddpg.store_transition(s, a, r/10, s_)
 
-# for i in range(10):
-#     s = env.reset()
-#     ep_reward = 0
-#     done = False
-#     while not done:
-
-#         # a = np.argmax(ddpg.choose_action(s))
+        if ddpg.pointer > MEMORY_CAPACITY:
+            var *= .9995    # decay the action randomness
+            ddpg.learn()
+        s = s_
+        ep_reward += r
+        # print('Espisode ', i, 'Day: ', day, ' Reward: ',ep_reward,' Capital: ', env.capital,'\n')
         
-#         a = ddpg.choose_action(s)    # add randomness to action selection for exploration
-#         s_, r, done, info = env.step(a)
-#         # env.render()
+        day += 30
+    capital_all.append(env.capital)
+    reward_all.append(reward_all)
 
-#         done = env.nextday()
-#         if done:
-#         	break
 
-#         ddpg.store_transition(s, a, r/10, s_)
+print('Running time: ', time.time() - t1)
 
-#         if ddpg.pointer > MEMORY_CAPACITY:
-#             var *= .9995    # decay the action randomness
-#             ddpg.learn()
-#         s = s_
-#         ep_reward += r
-#         print('Day: ', count, ' Reward: ',ep_reward,' Capital: ', env.capital,'\n')
-        
-#         count += 30
 
-#         # if done:
-#         #     print('Episode:', count, ' Reward: %count' % int(ep_reward))
-#         #     # if ep_reward > -300:RENDER = True
-#         #     break
-#     print('End of stock')
-#     print('reward ',ep_reward)
-#     capital_plot.append(round(env.capital))
+###############################  plot result  ####################################
+# fig, ax = plt.subplots()
+# index = np.arange(100)
+# bar_width = 0.35
+# opacity = 0.8
 
-# print('Running time: ', time.time() - t1)
-# plt.plot(capital_plot)
+# rects1 = plt.bar(index, capital_all, bar_width, alpha=opacity,color='b', label='Capital')
+
+# rects2 = plt.bar(index + bar_width, reward_all, bar_width, alpha=opacity, color='g',label='Reward')
+
+# plt.xlabel('Espisode')
+# plt.ylabel('Scores')
+# plt.title('Capital and Reward')
+# plt.xticks(index + bar_width, ('Espisode',index))
+# plt.legend()
+# plt.tight_layout()
 # plt.show()

@@ -25,7 +25,7 @@ ENV_NAME = 'stock-v0'
 
 class DDPG(object):
     def __init__(self, a_dim, s_dim, a_bound,):
-        self.memory = np.zeros((MEMORY_CAPACITY, s_dim  + a_dim + 1), dtype=np.float32)
+        self.memory = np.zeros((MEMORY_CAPACITY, s_dim * 2  + a_dim + 1), dtype=np.float32)
         self.pointer = 0
         self.sess = tf.Session()
 
