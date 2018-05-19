@@ -6,38 +6,27 @@ import time
 import matplotlib.pyplot as plt
 from ddpg import DDPG
 import random
-#####################  hyper parameters  ####################
-
-MAX_EPISODES = 200
-MAX_EP_STEPS = 200
-LR_A = 0.001    # learning rate for actor
-LR_C = 0.002    # learning rate for critic
-GAMMA = 0.9     # reward discount
-TAU = 0.01      # soft replacement
-MEMORY_CAPACITY = 10000
-BATCH_SIZE = 32
-
-###############################  training  ####################################
 
 env = gym.make('stock-v0')
 env = env.unwrapped
+model_name = 'cnn'
+env.load_model(model_name = model_name, is_train = True)
 env.seed(1)
+
 
 a_dim = env.actions.shape[0]
 a_bound = env.action_bound.high
 s_dim = env.observation_space.shape[0]
 
-ddpg = DDPG(a_dim, s_dim, a_bound)
+ddpg = DDPG(a_dim, s_dim, a_bound, model_name)
 
-# add randomness to action selection for exploration
-var = 3  # control exploration
 t1 = time.time()
 
 
 
 capital_all = []
 reward_all = []
-espisode = 1
+espisode = 1000
 
 for i in range(espisode):
     s = env.reset()
@@ -54,20 +43,18 @@ for i in range(espisode):
 
         ddpg.store_transition(s, a, r/10, s_)
 
-        if ddpg.pointer > MEMORY_CAPACITY:
-            var *= .9995    # decay the action randomness
-            ddpg.learn()
         s = s_
         ep_reward += r
-        # print('Espisode ', i, 'Day: ', day, ' Reward: ',ep_reward,' Capital: ', env.capital,'\n')
         
         day += 30
+
+    ddpg.learn()
+    print('Espisode ', i, 'Day: ', day, ' Reward: ',ep_reward,' Capital: ', env.capital,'\n')
     capital_all.append(env.capital)
     reward_all.append(reward_all)
 
 
 print('Running time: ', time.time() - t1)
-
 
 ###############################  plot result  ####################################
 # fig, ax = plt.subplots()

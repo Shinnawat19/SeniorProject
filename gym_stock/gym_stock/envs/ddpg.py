@@ -24,10 +24,11 @@ ENV_NAME = 'stock-v0'
 
 
 class DDPG(object):
-    def __init__(self, a_dim, s_dim, a_bound,):
+    def __init__(self, a_dim, s_dim, a_bound, model_name):
         self.memory = np.zeros((MEMORY_CAPACITY, s_dim * 2  + a_dim + 1), dtype=np.float32)
         self.pointer = 0
         self.sess = tf.Session()
+        
 
         self.a_dim, self.s_dim, self.a_bound = a_dim, s_dim, a_bound,
         self.S = tf.placeholder(tf.float32, [None, s_dim], 's')
@@ -56,6 +57,9 @@ class DDPG(object):
             self.ctrain = tf.train.AdamOptimizer(LR_C).minimize(td_error, var_list=c_params)
 
         self.sess.run(tf.global_variables_initializer())
+        self.saver = tf.train.Saver()
+        self.saver.save(self.sess, './ddpg_model/'+model_name+'.ckpt',global_step=1000)
+
 
     def choose_action(self, s):
         return self.sess.run(self.a, {self.S: s[np.newaxis, :]})[0]

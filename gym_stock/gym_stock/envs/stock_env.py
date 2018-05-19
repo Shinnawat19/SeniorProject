@@ -162,6 +162,6 @@ class StockEnv(gym.Env):
 		print("\nCash: " , self.balance , " Capital: " , self.capital,'\n')
 				
 	def get_observation(self):
-		observation = np.asarray([ predict[self.i: self.i + 30] for predict in self.predicted_data]).T
+		observation = np.asarray([ predict[self.i: self.i + 30] for predict in self.predicted_data])
 		observation = observation.reshape(observation.shape[0] * observation.shape[1])
 		return observation
