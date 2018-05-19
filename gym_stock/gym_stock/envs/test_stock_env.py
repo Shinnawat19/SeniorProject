@@ -14,28 +14,28 @@ env.load_model(model_name = model_name, is_train = True)
 env.seed(1)
 
 
+
 a_dim = env.actions.shape[0]
 a_bound = env.action_bound.high
 s_dim = env.observation_space.shape[0]
 
-ddpg = DDPG(a_dim, s_dim, a_bound, model_name)
-
+ddpg = DDPG(a_dim, s_dim, a_bound)
+# ddpg.load_model(model_name)
 t1 = time.time()
 
 
-
+epoch = 10
 capital_all = []
 reward_all = []
-espisode = 1000
 
-for i in range(espisode):
+for i in range(epoch):
     s = env.reset()
     ep_reward = 0
     day = 0
     done = False
     while not done:
 
-        a = ddpg.choose_action(s)    # add randomness to action selection for exploration
+        a = ddpg.choose_action(s)
         s_, r, done, info = env.step(a)
         # env.render()
         if done:
@@ -55,21 +55,4 @@ for i in range(espisode):
 
 
 print('Running time: ', time.time() - t1)
-
-###############################  plot result  ####################################
-# fig, ax = plt.subplots()
-# index = np.arange(100)
-# bar_width = 0.35
-# opacity = 0.8
-
-# rects1 = plt.bar(index, capital_all, bar_width, alpha=opacity,color='b', label='Capital')
-
-# rects2 = plt.bar(index + bar_width, reward_all, bar_width, alpha=opacity, color='g',label='Reward')
-
-# plt.xlabel('Espisode')
-# plt.ylabel('Scores')
-# plt.title('Capital and Reward')
-# plt.xticks(index + bar_width, ('Espisode',index))
-# plt.legend()
-# plt.tight_layout()
-# plt.show()
+ddpg.save_model(model_name)

@@ -14,7 +14,7 @@ LR_C = 0.002    # learning rate for critic
 GAMMA = 0.9     # reward discount
 TAU = 0.01      # soft replacement
 MEMORY_CAPACITY = 5000
-BATCH_SIZE = 32
+BATCH_SIZE = 100
 
 RENDER = False
 ENV_NAME = 'stock-v0'
@@ -24,7 +24,7 @@ ENV_NAME = 'stock-v0'
 
 
 class DDPG(object):
-    def __init__(self, a_dim, s_dim, a_bound, model_name):
+    def __init__(self, a_dim, s_dim, a_bound):
         self.memory = np.zeros((MEMORY_CAPACITY, s_dim * 2  + a_dim + 1), dtype=np.float32)
         self.pointer = 0
         self.sess = tf.Session()
@@ -58,7 +58,13 @@ class DDPG(object):
 
         self.sess.run(tf.global_variables_initializer())
         self.saver = tf.train.Saver()
-        self.saver.save(self.sess, './ddpg_model/'+model_name+'.ckpt',global_step=1000)
+        
+
+    def save_model(self, model_name):
+    	self.saver.save(self.sess, './ddpg_model/'+model_name)
+
+    def load_model(self, model_name):
+    	self.saver.restore(self.sess, './ddpg_model/'+model_name)
 
 
     def choose_action(self, s):
@@ -97,3 +103,4 @@ class DDPG(object):
             b1 = tf.get_variable('b1', [1, n_l1], trainable=trainable)
             net = tf.nn.relu(tf.matmul(s, w1_s) + tf.matmul(a, w1_a) + b1)
             return tf.layers.dense(net, 1, trainable=trainable)  # Q(s,a)
+
