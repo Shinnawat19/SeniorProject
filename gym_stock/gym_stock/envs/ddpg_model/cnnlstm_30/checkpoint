@@ -1,0 +1,2 @@
+model_checkpoint_path: "cnnlstm_30day_1000"
+all_model_checkpoint_paths: "cnnlstm_30day_1000"

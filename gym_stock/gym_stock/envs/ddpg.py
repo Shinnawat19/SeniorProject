@@ -62,9 +62,16 @@ class DDPG(object):
 
     def save_model(self, model_name):
     	self.saver.save(self.sess, './ddpg_model/'+model_name)
+    	print("Successfully saved:")
 
     def load_model(self, model_name):
-    	self.saver.restore(self.sess, './ddpg_model/'+model_name)
+        checkpoint = tf.train.get_checkpoint_state(model_name)
+        if checkpoint and checkpoint.model_checkpoint_path:
+            self.saver.restore(self.sess, checkpoint.model_checkpoint_path)
+            print("Successfully loaded:", checkpoint.model_checkpoint_path)
+        else:
+            print("Could not find old network weights")
+
 
 
     def choose_action(self, s):
