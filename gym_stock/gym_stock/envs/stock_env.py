@@ -22,9 +22,11 @@ class StockEnv(gym.Env):
 		self.action_bound = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
 
 	def load_model(self, model_name, is_train):
+		self.is_train = 0.7 if is_train else 1.0
 		if is_train:
 			self.model_name = model_name
 		else:
+			self.i = round(len(self.symbols[0]) * 0.7) - 30
 			self.model_name = model_name + 'Test'
 		self.predicted_data = np.loadtxt(self.model_name + 'Predictions.txt', dtype=float)
 		print('Prediction with ' + self.model_name)
@@ -143,7 +145,7 @@ class StockEnv(gym.Env):
 		self.capital_n0 = capital_n1
 		
 	def next_day(self):
-		if self.i + self.skip_days < len(self.symbols[0]) - 30:
+		if self.i + self.skip_days < round(len(self.symbols[0]) * 0.7) - 30:
 			self.i += 30
 			self.market = [symbol.iloc[self.i + self.skip_days: self.i + self.skip_days + 1] for symbol in self.symbols]
 			self.update_date_and_market_price_portfolio() #fix
@@ -160,14 +162,6 @@ class StockEnv(gym.Env):
 		print("\nCash: " , self.balance , " Capital: " , self.capital,'\n')
 				
 	def get_observation(self):
-		observation = self.predicted_data[self.i: self.i + 30]
+		observation = np.asarray([ predict[self.i: self.i + 30] for predict in self.predicted_data]).T
 		observation = observation.reshape(observation.shape[0] * observation.shape[1])
-		
-		# portfolio = [ [stock['Volume'], stock['Average Price'], stock['Market Price']] for stock in self.portfolio]
-		# portfolio = np.asarray(portfolio)
-		# portfolio = portfolio.reshape(portfolio.shape[0] * portfolio.shape[1])
-		# observation = np.append(observation, portfolio)
-
-		# balance = np.array([self.balance])
-		# observation = np.append(observation, balance)
 		return observation
