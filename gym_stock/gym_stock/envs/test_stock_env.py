@@ -9,8 +9,8 @@ import random
 
 env = gym.make('stock-v0')
 env = env.unwrapped
-model_name = 'cnn'
-env.load_model(model_name = model_name, is_train = True)
+model_name = 'cnnlstm'
+env.load_model(model_name = model_name, is_train = True, threshold = 30)
 env.seed(1)
 
 
@@ -20,7 +20,7 @@ a_bound = env.action_bound.high
 s_dim = env.observation_space.shape[0]
 
 ddpg = DDPG(a_dim, s_dim, a_bound)
-ddpg.load_model('./ddpg_model/cnn_30')
+# ddpg.load_model('./ddpg_model/cnn_30')
 
 
 epoch = 1000
@@ -38,7 +38,7 @@ for i in range(epoch):
         s_, r, done, info = env.step(a)
         # env.render()
         if done:
-          break
+        	break
 
         ddpg.store_transition(s, a, r/10, s_)
 
@@ -51,6 +51,6 @@ for i in range(epoch):
     print('Espisode ', i, 'Day: ', day, ' Reward: ',ep_reward,' Capital: ', env.capital,'\n')
     capital_all.append(env.capital)
     reward_all.append(reward_all)
-# ddpg.save_model('/cnnlstm_30/' + model_name + '_30day_1000')
+ddpg.save_model('/cnnlstm_30/' + model_name)
 
 

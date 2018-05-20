@@ -1,2 +1,2 @@
-model_checkpoint_path: "lstm_30day_1000"
-all_model_checkpoint_paths: "lstm_30day_1000"
+model_checkpoint_path: "lstm"
+all_model_checkpoint_paths: "lstm"
