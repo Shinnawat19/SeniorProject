@@ -27,7 +27,7 @@ class StockEnv(gym.Env):
 			self.model_name = model_name
 			self.prefix = 0
 		else:
-			self.prefix = round(len(self.symbols[0]) * 0.7) - 30
+			self.prefix = round((len(self.symbols[0]) - 30) * 0.7)
 			self.model_name = model_name + 'Test'
 		self.predicted_data = np.loadtxt(self.model_name + 'Predictions.txt', dtype=float)
 		print('Prediction with ' + self.model_name)
@@ -146,8 +146,8 @@ class StockEnv(gym.Env):
 		self.capital_n0 = capital_n1
 		
 	def next_day(self):
-		if self.prefix + self.i + self.skip_days < round(len(self.symbols[0]) * self.is_train) - 30:
-			self.i += 7
+		if self.prefix + self.i + 30 < round((len(self.symbols[0]) - 30) * self.is_train) :
+			self.i += 30
 			self.market = [symbol.iloc[self.i + self.skip_days: self.i + self.skip_days + 1] for symbol in self.symbols]
 			self.update_date_and_market_price_portfolio() #fix
 		else:
