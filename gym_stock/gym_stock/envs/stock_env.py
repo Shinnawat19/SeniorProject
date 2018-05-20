@@ -21,8 +21,9 @@ class StockEnv(gym.Env):
 		self.actions = np.zeros(shape=(36,))
 		self.action_bound = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
 
-	def load_model(self, model_name, is_train):
+	def load_model(self, model_name, is_train, threshold):
 		self.is_train = 0.7 if is_train else 1.0
+		self.threshold = threshold
 		if is_train:
 			self.model_name = model_name
 			self.prefix = 0
@@ -146,9 +147,9 @@ class StockEnv(gym.Env):
 		self.capital_n0 = capital_n1
 		
 	def next_day(self):
-		if self.prefix + self.i + 30 < round((len(self.symbols[0]) - 30) * self.is_train) :
-			self.i += 30
-			self.market = [symbol.iloc[self.i + self.skip_days: self.i + self.skip_days + 1] for symbol in self.symbols]
+		if  self.prefix + (self.i * 30) < self.predicted_data.shape[1]  :
+			self.i += 1
+			self.market = [symbol.iloc[self.i * self.threshold + self.skip_days: self.i * self.threshold + self.skip_days + 1] for symbol in self.symbols]
 			self.update_date_and_market_price_portfolio() #fix
 		else:
 			self.done = True
