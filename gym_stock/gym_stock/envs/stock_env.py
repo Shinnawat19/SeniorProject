@@ -25,8 +25,9 @@ class StockEnv(gym.Env):
 		self.is_train = 0.7 if is_train else 1.0
 		if is_train:
 			self.model_name = model_name
+			self.prefix = 0
 		else:
-			self.i = round(len(self.symbols[0]) * 0.7) - 30
+			self.prefix = round(len(self.symbols[0]) * 0.7) - 30
 			self.model_name = model_name + 'Test'
 		self.predicted_data = np.loadtxt(self.model_name + 'Predictions.txt', dtype=float)
 		print('Prediction with ' + self.model_name)
@@ -84,8 +85,8 @@ class StockEnv(gym.Env):
 				self.sell(index, action)
 
 		self.capital = self.balance + self.find_portfolio_sum()
-		self.done = self.next_day()
 		self.set_reward()
+		self.done = self.next_day()
 
 		return self.get_observation(), self.reward, self.done,{}
 
@@ -127,7 +128,7 @@ class StockEnv(gym.Env):
 	def calculate_new_average_price(self, old_volume, old_price, new_volume, new_price):
 		old_amount = old_volume * old_price
 		new_amount = new_volume * new_price
-		return (old_amount * new_amount) / (old_volume + new_volume)
+		return (old_amount + new_amount) / (old_volume + new_volume)
 
 	def find_portfolio_sum(self):
 		portfolio = [ stock['Volume'] * stock['Market Price'] for stock in self.portfolio]
@@ -145,8 +146,8 @@ class StockEnv(gym.Env):
 		self.capital_n0 = capital_n1
 		
 	def next_day(self):
-		if self.i + self.skip_days < round(len(self.symbols[0]) * 0.7) - 30:
-			self.i += 30
+		if self.prefix + self.i + self.skip_days < round(len(self.symbols[0]) * self.is_train) - 30:
+			self.i += 7
 			self.market = [symbol.iloc[self.i + self.skip_days: self.i + self.skip_days + 1] for symbol in self.symbols]
 			self.update_date_and_market_price_portfolio() #fix
 		else:
