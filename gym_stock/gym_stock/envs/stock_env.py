@@ -13,25 +13,22 @@ class StockEnv(gym.Env):
 		self.skip_days = 60
 		self.BUY = 0
 		self.SELL = 1
+		self.actions = np.zeros(shape=(36,))
+		self.action_bound = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
+
+	def load_model(self, model_name, is_train, threshold):
+		self.threshold = threshold
+		if is_train:
+			self.model_name = model_name
+		else:
+			self.skip_days = 1690
+			self.model_name = model_name + 'Test'
+		self.predicted_data = np.loadtxt(self.model_name + 'Predictions.txt', dtype=float)
 
 		self.initialize_stock_data()
 		self.initialize_variable()
 		self.initialize_portfolio()
 
-		self.actions = np.zeros(shape=(36,))
-		self.action_bound = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
-
-	def load_model(self, model_name, is_train, threshold):
-		self.is_train = 0.7 if is_train else 1.0
-		self.threshold = threshold
-		if is_train:
-			self.model_name = model_name
-			self.prefix = 0
-		else:
-			self.prefix = round((len(self.symbols[0]) - 30) * 0.7)
-			self.model_name = model_name + 'Test'
-		self.predicted_data = np.loadtxt(self.model_name + 'Predictions.txt', dtype=float)
-		print('Prediction with ' + self.model_name)
 		self.observation_space = self.get_observation()
 
 	def initialize_variable(self):
@@ -147,7 +144,7 @@ class StockEnv(gym.Env):
 		self.capital_n0 = capital_n1
 		
 	def next_day(self):
-		if  self.prefix + (self.i * 30) < self.predicted_data.shape[1]  :
+		if  self.i * 30 < self.predicted_data.shape[1]  :
 			self.i += 1
 			self.market = [symbol.iloc[self.i * self.threshold + self.skip_days: self.i * self.threshold + self.skip_days + 1] for symbol in self.symbols]
 			self.update_date_and_market_price_portfolio() #fix
