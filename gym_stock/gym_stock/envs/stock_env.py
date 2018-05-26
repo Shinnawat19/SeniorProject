@@ -6,6 +6,8 @@ import pandas as pd
 import numpy as np
 import os, json
 import math
+import requests
+import json
 
 class StockEnv(gym.Env):
 	def __init__(self):
@@ -30,6 +32,10 @@ class StockEnv(gym.Env):
 		self.initialize_portfolio()
 
 		self.observation_space = self.get_observation()
+
+	def create_bot(self, bot_name):
+		self.bot_name = bot_name
+		conn = requests.post("http://localhost:8000/trading/bot", data = json.dumps({"name": self.bot_name}))
 
 	def initialize_variable(self):
 		self.balance = 1000000.
@@ -83,6 +89,9 @@ class StockEnv(gym.Env):
 				self.sell(index, action)
 
 		self.capital = self.balance + self.find_portfolio_sum()
+		conn = requests.put("http://localhost:8000/trading/cash", 
+				data = json.dumps({"name": self.bot_name, "cash": self.capital}))
+		self.sendPortfolio()
 		self.set_reward()
 		self.done = self.next_day()
 
@@ -98,7 +107,9 @@ class StockEnv(gym.Env):
 			if old_volume != 0:
 				old_price = self.portfolio[index]['Average Price']
 				base_price = self.calculate_new_average_price(old_volume, old_price, base_price, volume)
-
+			conn = requests.post("http://localhost:8000/trading/trade", 
+				data = json.dumps({"name": self.bot_name, "symbol": self.SET50[index], "action": "BUY",
+				"volume": volume, "averagePrice": base_price}))
 			self.portfolio[index]['Average Price'] = base_price
 			self.portfolio[index]['Volume'] = old_volume + volume
 
@@ -106,11 +117,25 @@ class StockEnv(gym.Env):
 		if not self.is_portfolio_empty(index):
 			old_volume = self.portfolio[index]['Volume']
 			sell_volume = abs(round(old_volume * percentage))
-			base_price = self.calculate_mean_open_close(index)
-			sold_stock_price = self.calculate_stock_price(self.SELL, base_price, sell_volume)
+			if sell_volume != 0:
+				base_price = self.calculate_mean_open_close(index)
+				sold_stock_price = self.calculate_stock_price(self.SELL, base_price, sell_volume)
+				conn = requests.post("http://localhost:8000/trading/trade", 
+					data = json.dumps({"name": self.bot_name, "symbol": self.SET50[index], "action": "SELL",
+					"volume": sell_volume, "averagePrice": base_price}))
+				self.balance = self.balance + sold_stock_price
+				self.portfolio[index]['Volume'] = old_volume - sell_volume
 
-			self.balance = self.balance + sold_stock_price
-			self.portfolio[index]['Volume'] = old_volume - sell_volume
+	def sendPortfolio(self):
+		portfolios = [{
+			"symbol": portfolio['Symbol'],
+			"volume": portfolio['Volume'],
+			"averagePrice": portfolio['Average Price'],
+			"marketPrice": portfolio['Market Price']
+		} for portfolio in self.portfolio]
+
+		conn = requests.post("http://localhost:8000/trading/portfolio",
+			data = json.dumps({"name": self.bot_name, "portfolios": portfolios}))
 
 	def is_portfolio_empty(self, index):
 		return self.portfolio[index]['Volume'] == 0

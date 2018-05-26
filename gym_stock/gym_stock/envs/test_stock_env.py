@@ -6,13 +6,16 @@ import time
 import matplotlib.pyplot as plt
 from ddpg import DDPG
 import random
+import time
 
 env = gym.make('stock-v0')
 env = env.unwrapped
 
-model = 'cnnlstm' # 'lstm', 'cnnlstm'
-threshold = 7
+model = 'lstm' # 'lstm', 'cnnlstm'
+threshold = 15
 is_train = False
+env.create_bot("bot03")
+time.sleep(3)
 
 env.load_model(model_name = model + str(threshold), 
                 is_train = is_train, 
@@ -45,6 +48,8 @@ for i in range(epoch):
         s = s_
         ep_reward += r
         day += threshold
+        time.sleep(3)
+        break
     print('Day: ', day, ' Reward: ',ep_reward + r,' Capital: ', env.capital,'\n')
     ddpg.learn()
     capital_all.append(env.capital)
