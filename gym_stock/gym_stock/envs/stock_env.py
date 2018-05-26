@@ -23,7 +23,7 @@ class StockEnv(gym.Env):
 		if is_train:
 			self.model_name = model_name
 		else:
-			self.skip_days = 1690
+			self.skip_days = 1716
 			self.model_name = model_name + 'Test'
 		self.predicted_data = np.loadtxt(self.model_name + 'Predictions.txt', dtype=float)
 
