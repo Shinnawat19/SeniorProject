@@ -21,7 +21,7 @@ class StockEnv(gym.Env):
 		if is_train:
 			self.model_name = model_name
 		else:
-			self.skip_days = 1716
+			self.skip_days = 1715
 			self.model_name = model_name + 'Test'
 		self.predicted_data = np.loadtxt(self.model_name + 'Predictions.txt', dtype=float)
 
@@ -144,7 +144,7 @@ class StockEnv(gym.Env):
 		self.capital_n0 = capital_n1
 		
 	def next_day(self):
-		if  self.i * 30 < self.predicted_data.shape[1]  :
+		if  (self.i + 1) * 30 < self.predicted_data.shape[1]  :
 			self.i += 1
 			self.market = [symbol.iloc[self.i * self.threshold + self.skip_days: self.i * self.threshold + self.skip_days + 1] for symbol in self.symbols]
 			self.update_date_and_market_price_portfolio() #fix
