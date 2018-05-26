@@ -38,6 +38,7 @@ for i in range(epoch):
 
         a = ddpg.choose_action(s)
         s_, r, done, info = env.step(a)
+        print('Day: ', day, ' Reward: ',ep_reward + r,' Capital: ', env.capital, 'Cash', env.balance ,'\n')
         if done:
             break
 
@@ -45,7 +46,6 @@ for i in range(epoch):
         s = s_
         ep_reward += r
         day += threshold
-    print('Day: ', day, ' Reward: ',ep_reward + r,' Capital: ', env.capital,'\n')
     ddpg.learn()
     capital_all.append(env.capital)
     reward_all.append(reward_all)
