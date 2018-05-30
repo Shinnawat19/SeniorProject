@@ -1,0 +1,4 @@
+/demo/node_modules/*
+/bot/.vscode
+/bot/*.pyc
+/bot/db.sqlite3
