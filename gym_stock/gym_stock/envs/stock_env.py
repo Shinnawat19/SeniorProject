@@ -18,6 +18,9 @@ class StockEnv(gym.Env):
 		self.actions = np.zeros(shape=(36,))
 		self.action_bound = spaces.Box(low=-1.0, high=1.0, shape=(1,), dtype=np.float32)
 
+	def set_demo(self, is_demo):
+		self.set_demo = is_demo
+
 	def load_model(self, model_name, is_train, threshold):
 		self.threshold = threshold
 		if is_train:
@@ -35,7 +38,8 @@ class StockEnv(gym.Env):
 
 	def create_bot(self, bot_name):
 		self.bot_name = bot_name
-		conn = requests.post("http://localhost:8000/trading/bot", data = json.dumps({"name": self.bot_name}))
+		if self.set_demo:
+			conn = requests.post("http://localhost:8000/trading/bot", data = json.dumps({"name": self.bot_name}))
 
 	def initialize_variable(self):
 		self.balance = 1000000.
@@ -44,6 +48,7 @@ class StockEnv(gym.Env):
 		self.reward = 0
 		self.i = 0
 		self.market = [symbol.iloc[self.i + self.skip_days: self.i + self.skip_days + 1] for symbol in self.symbols]
+		self.date = self.market[0].iloc[0]['Date']
 		self.done = False
 
 	def initialize_stock_data(self):
@@ -55,16 +60,13 @@ class StockEnv(gym.Env):
 		self.symbols = symbols
 
 	def initialize_portfolio(self):
-		self.portfolio = [ self.create_portfolio_object(i) for i in range(len(self.SET50))]
-        
-	def create_portfolio_object(self, index):
-		return {
-			'Date': self.market[index].iloc[0]['Date'],
-			"Symbol": self.SET50[index],
+		self.portfolio = [ {
+			'Date': self.date,
+			"Symbol": self.SET50[i],
 			'Volume': 0,
 			'Average Price': 0,
-			'Market Price': self.calculate_mean_open_close(index),
-		}
+			'Market Price': self.calculate_mean_open_close(i),
+		} for i in range(len(self.SET50))]
 
 	def calculate_mean_open_close(self, index):
 		return (self.market[index].iloc[0]['Open'] + self.market[index].iloc[0]['Close'])/2
@@ -72,7 +74,7 @@ class StockEnv(gym.Env):
 	def update_date_and_market_price_portfolio(self):
 		for (index, portfolio) in enumerate(self.portfolio):
 			portfolio['Market Price'] = self.calculate_mean_open_close(index)
-			portfolio['Date'] = self.market[index].iloc[0]['Date']
+			portfolio['Date'] = self.date
 
 	def reset(self):
 		self.initialize_variable()
@@ -89,11 +91,12 @@ class StockEnv(gym.Env):
 				self.sell(index, action)
 
 		self.capital = self.balance + self.find_portfolio_sum()
-		conn = requests.put("http://localhost:8000/trading/cash", 
-				data = json.dumps({"name": self.bot_name, "cash": self.capital}))
+		if self.set_demo:
+			conn = requests.put("http://localhost:8000/trading/capital", 
+				data = json.dumps({"name": self.bot_name, "capital": self.capital}))
 		self.sendPortfolio()
 		self.set_reward()
-		self.done = self.next_day()
+		self.next_day()
 
 		return self.get_observation(), self.reward, self.done,{}
 
@@ -107,9 +110,10 @@ class StockEnv(gym.Env):
 			if old_volume != 0:
 				old_price = self.portfolio[index]['Average Price']
 				base_price = self.calculate_new_average_price(old_volume, old_price, base_price, volume)
-			conn = requests.post("http://localhost:8000/trading/trade", 
-				data = json.dumps({"name": self.bot_name, "symbol": self.SET50[index], "action": "BUY",
-				"volume": volume, "averagePrice": base_price}))
+			if self.set_demo:
+				conn = requests.post("http://localhost:8000/trading/trade", 
+					data = json.dumps({"name": self.bot_name, "symbol": self.SET50[index], "action": "BUY",
+					"volume": volume, "averagePrice": base_price, "date": self.date}))
 			self.portfolio[index]['Average Price'] = base_price
 			self.portfolio[index]['Volume'] = old_volume + volume
 
@@ -119,11 +123,13 @@ class StockEnv(gym.Env):
 			sell_volume = abs(round(old_volume * percentage))
 			if sell_volume != 0:
 				base_price = self.calculate_mean_open_close(index)
-				sold_stock_price = self.calculate_stock_price(self.SELL, base_price, sell_volume)
-				conn = requests.post("http://localhost:8000/trading/trade", 
-					data = json.dumps({"name": self.bot_name, "symbol": self.SET50[index], "action": "SELL",
-					"volume": sell_volume, "averagePrice": base_price}))
-				self.balance = self.balance + sold_stock_price
+
+				if self.set_demo:
+					conn = requests.post("http://localhost:8000/trading/trade", 
+						data = json.dumps({"name": self.bot_name, "symbol": self.SET50[index], "action": "SELL",
+						"volume": sell_volume, "averagePrice": base_price, "date": self.date}))
+
+				self.balance = self.balance + self.calculate_stock_price(self.SELL, base_price, sell_volume)
 				self.portfolio[index]['Volume'] = old_volume - sell_volume
 
 	def sendPortfolio(self):
@@ -134,8 +140,9 @@ class StockEnv(gym.Env):
 			"marketPrice": portfolio['Market Price']
 		} for portfolio in self.portfolio]
 
-		conn = requests.post("http://localhost:8000/trading/portfolio",
-			data = json.dumps({"name": self.bot_name, "portfolios": portfolios}))
+		if self.set_demo:
+			conn = requests.post("http://localhost:8000/trading/portfolio",
+				data = json.dumps({"name": self.bot_name, "portfolios": portfolios}))
 
 	def is_portfolio_empty(self, index):
 		return self.portfolio[index]['Volume'] == 0
@@ -172,13 +179,13 @@ class StockEnv(gym.Env):
 		if  (self.i + 1) * 30 < self.predicted_data.shape[1]  :
 			self.i += 1
 			self.market = [symbol.iloc[self.i * self.threshold + self.skip_days: self.i * self.threshold + self.skip_days + 1] for symbol in self.symbols]
-			self.update_date_and_market_price_portfolio() #fix
+			self.date = self.market[0].iloc[0]['Date']
+			self.update_date_and_market_price_portfolio()
 		else:
 			self.done = True
-		return self.done
 
 	def render(self):
-		print("\nPORTFOLIO on ", self.market[0].iloc[0]['Date'], "\n")
+		print("\nPORTFOLIO on ", self.date, "\n")
 		for index in range(len(portfolio)):
 			if self.is_portfolio_empty(index):
 				print("Symbol: ", self.portfolio[index]['Symbol'], " Volume: ", self.portfolio[index]['Volume'], " Average price: ", self.portfolio[index]['Average Price'], " Market price: ", self.portfolio[index]['Market Price'])

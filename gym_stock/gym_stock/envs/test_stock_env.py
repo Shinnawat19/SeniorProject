@@ -29,7 +29,7 @@ if is_Demo:
 env.load_model(model_name = model + str(threshold), 
                 is_train = is_train, 
                 threshold= threshold)
-env.demo(is_Demo)
+env.set_demo(is_Demo)
 ddpg = DDPG(a_dim, s_dim, a_bound)
 ddpg.load_model('./ddpg_model/' + model + '_' + str(threshold) + '/')
 
