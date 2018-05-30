@@ -1,0 +1,110 @@
+#app {
+    font-family: 'Roboto', sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    color: #2c3e50;
+    height: 100vh;
+    background-color: rgba(0, 0, 0, 0.12);
+    overflow: hidden;
+}
+
+.scrollable {
+    overflow-y: hidden;
+    width: 100%;
+    height: calc(100vh - 130px);
+}
+
+.scroll {
+    height: 100% !important;
+}
+
+.scroll::-webkit-scrollbar {
+    width: 4px !important;
+    background-color: #F5F5F5 !important;
+}
+
+.scroll::-webkit-scrollbar-thumb {
+    border-radius: 10px !important;
+    box-shadow: inset 0 0 6px rgba(0,0,0,.3) !important;
+    background-color: #555 !important;
+}
+
+.col-sm-3, .col-sm-9 {
+    padding: 0;
+}
+
+.col-sm-3 {
+    padding-left: 16px;
+}
+
+.col-sm-9 {
+    padding-right: 32px;
+}
+
+.item-block {
+    margin-left: 16px;
+    padding-bottom: 8px;
+    background-color: #fefefe;
+    box-shadow: 2px 4px 2px 0 rgba(0, 0, 0, 0.2);
+}
+
+.action {
+    height: 600px;
+    width: 300px;
+}
+
+.capital {
+    height: 302px;
+}
+
+.portfolio {
+    height: 290px;
+    margin-top: 8px;
+    overflow: hidden;
+}
+
+.block-title {
+    padding-left: 16px;
+    padding-top: 8px;
+    margin-top: 8px;
+}
+
+.margin-top-small {
+    margin-top: 8px;
+}
+
+.navbar {
+    background-color: #42A5F5 !important;
+    box-shadow: 0 4px 2px 0 rgba(0, 0, 0, 0.15);
+    border-radius: 0 !important;
+    height: 50px;
+}
+
+.fixed_header{
+    width: 100%;
+    height: 100%;
+    table-layout: fixed;
+    border-collapse: collapse;
+}
+
+.fixed_header tbody{
+    display:block;
+    width: 100%;
+    overflow: auto;
+    height: 190px;
+}
+
+.fixed_header thead tr {
+    display: block;
+}
+
+.fixed_header thead {
+    background: #42A5F5;
+    color:#fefefe;
+}
+
+.fixed_header th, .fixed_header td {
+    padding: 5px;
+    text-align: center;
+    width: 200px;
+}
