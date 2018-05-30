@@ -49,7 +49,7 @@ class StockEnv(gym.Env):
 	def initialize_stock_data(self):
 		symbols = []
 		for stock in self.SET50:
-			temp = pd.read_csv('../../../Data set/SET50_OHLC/' + stock + '.BK.csv')
+			temp = pd.read_csv('../../../Data set/SET50_OHLC_FIXED/' + stock + '.BK.csv')
 			symbols.append(temp)
 
 		self.symbols = symbols
@@ -80,10 +80,10 @@ class StockEnv(gym.Env):
 		return self.get_observation()
 
 	def step(self, actions):
-		max_volume = 1000
 		for (index, action) in enumerate(actions):
 			if action > 0:
-				volume = round(max_volume * action)
+				max_price = 20000
+				volume = (max_price * action) // self.calculate_mean_open_close(index)
 				self.buy(index, volume)
 			elif action < 0:
 				self.sell(index, action)
@@ -169,7 +169,7 @@ class StockEnv(gym.Env):
 		self.capital_n0 = capital_n1
 		
 	def next_day(self):
-		if  self.i * 30 < self.predicted_data.shape[1]  :
+		if  (self.i + 1) * 30 < self.predicted_data.shape[1]  :
 			self.i += 1
 			self.market = [symbol.iloc[self.i * self.threshold + self.skip_days: self.i * self.threshold + self.skip_days + 1] for symbol in self.symbols]
 			self.update_date_and_market_price_portfolio() #fix
