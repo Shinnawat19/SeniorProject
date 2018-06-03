@@ -12,8 +12,9 @@ env = gym.make('stock-v0')
 
 #######################
 model = 'cnn'
-threshold = 30
-is_train = True
+threshold = 7
+is_train = False
+is_demo = False # require web demo, run web demo in demo folder before run this bot
 epoch = 1000 if is_train else 1
 capital_all = []
 reward_all = []
@@ -29,8 +30,15 @@ a_bound = env.action_bound.high
 s_dim = env.observation_space.shape[0]
 #######################
 
+env.set_demo(is_demo)
+if is_demo:
+    env.create_bot('botname')
+    time.sleep(4)
+
 ddpg = DDPG(a_dim, s_dim, a_bound)
-# ddpg.load_model('./ddpg_model/' + model + '_' + str(threshold) + '/')
+
+if not is_train:
+    ddpg.load_model('./ddpg_model/' + model + '_' + str(threshold) + '/')
 
 for i in range(epoch):
     s = env.reset()
@@ -40,6 +48,7 @@ for i in range(epoch):
     while not done:
 
         a = ddpg.choose_action(s)
+        print(a)
         s_, r, done, info = env.step(a)
         if done:
             break
@@ -48,6 +57,9 @@ for i in range(epoch):
         s = s_
         ep_reward += r
         day += threshold
+
+        if is_demo:
+            time.sleep(4)
     
     print('Epochs:', i)
     print('Day: ', day, ' Reward: ',ep_reward + r,' Capital: ', env.capital,'\n')
@@ -55,4 +67,5 @@ for i in range(epoch):
     capital_all.append(env.capital)
     reward_all.append(reward_all)
 
-ddpg.save_model('/' + model + '_' + str(threshold) + '/' + model)
+if is_train:
+    ddpg.save_model('/' + model + '_' + str(threshold) + '/' + model)
