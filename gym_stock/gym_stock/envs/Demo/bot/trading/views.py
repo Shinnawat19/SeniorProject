@@ -8,6 +8,7 @@ from rest_framework import status
 from rest_framework import status
 from trading.models import BotDetail, BotAction, BotPortfolio
 from django.utils.dateparse import parse_date
+import datetime
 # Create your views here.
 
 @api_view(['POST'])
@@ -27,6 +28,7 @@ def capital(request):
         data = JSONParser().parse(request)
         bot = BotDetail.objects.get(name=data['name'])
         bot.capital = float(data['capital'])
+        bot.lastUpdate = datetime.datetime.strptime(data['date'], "%Y-%m-%d").date()
         bot.save()
 
         return JsonResponse({}, status = status.HTTP_200_OK)
@@ -49,7 +51,7 @@ def trade(request):
                         symbol = data['symbol'],
                         volume = data['volume'],
                         averagePrice = data['averagePrice'],
-                        date = parse_date(data['date']))
+                        date = datetime.datetime.strptime(data['date'], "%Y-%m-%d").date())
         action.save()
 
         return JsonResponse({}, status = status.HTTP_200_OK)

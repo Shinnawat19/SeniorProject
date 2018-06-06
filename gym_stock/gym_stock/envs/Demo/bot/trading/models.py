@@ -5,6 +5,7 @@ from django.db import models
 class BotDetail(models.Model):
     name = models.CharField(max_length = 10)
     capital = models.FloatField(blank = False, null = False)
+    lastUpdate = models.DateField(blank = True, null = True)
     class Meta:
         ordering = ('name', )
 
