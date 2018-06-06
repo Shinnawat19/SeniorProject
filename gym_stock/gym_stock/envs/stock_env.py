@@ -84,7 +84,7 @@ class StockEnv(gym.Env):
 	def step(self, actions):
 		for (index, action) in enumerate(actions):
 			if action > 0:
-				max_price = 20000
+				max_price = 10000
 				volume = (max_price * action) // self.calculate_mean_open_close(index)
 				self.buy(index, volume)
 			elif action < 0:
@@ -93,7 +93,7 @@ class StockEnv(gym.Env):
 		self.capital = self.balance + self.find_portfolio_sum()
 		if self.set_demo:
 			conn = requests.put("http://localhost:8000/trading/capital", 
-				data = json.dumps({"name": self.bot_name, "capital": self.capital}))
+				data = json.dumps({"name": self.bot_name, "capital": self.capital, "date": self.date}))
 		self.sendPortfolio()
 		self.set_reward()
 		self.next_day()
