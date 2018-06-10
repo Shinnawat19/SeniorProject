@@ -50,6 +50,7 @@ import Item from './Item.vue'
 import Navbar from './Navbar'
 import virtualList from 'vue-virtual-scroll-list'
 import axios from 'axios'
+import moment from 'moment'
 export default {
   name: 'app',
   components: {
@@ -64,7 +65,7 @@ export default {
       index: 0,
       actions: null,
       portfolios: null,
-      botName: 'bot04'
+      botName: 'botname'
     }
   },
   created () {
@@ -92,12 +93,12 @@ export default {
       })
     },
     getCash() {
-      axios.get('http://localhost:8000/trading/cash', {
+      axios.get('http://localhost:8000/trading/capital', {
         params: { name: this.botName }
       }).then(response => {
-        this.data.push({"year": ++this.index, "value": response.data.cash})
-        this.charts.clear()
-        this.createChart()
+        let date = moment(response.data.date).format('MM/DD/YYYY')
+        this.data.push({"date": date, "value": response.data.capital})
+        this.charts.validateData()
       })
     },
     createChart () {
@@ -122,15 +123,15 @@ export default {
             "valueField": "value"
         }],
         "chartCursor": {
-            "categoryBalloonDateFormat": "YYYY",
+            "categoryBalloonDateFormat": "DD/MM/YYYY",
             "cursorAlpha": 0,
             "valueLineEnabled":true,
             "valueLineBalloonEnabled":true,
             "valueLineAlpha":0.5,
             "fullWidth":true
         },
-        "dataDateFormat": "YYYY",
-        "categoryField": "year"
+        "dataDateFormat": "DD/MM/YYYY",
+        "categoryField": "date"
       }
     )
     }

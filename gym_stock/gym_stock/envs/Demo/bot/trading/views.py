@@ -37,7 +37,7 @@ def capital(request):
         name = request.GET['name']
         bot = BotDetail.objects.get(name = name)
 
-        return JsonResponse({'capital': bot.capital}, status = status.HTTP_200_OK)
+        return JsonResponse({'capital': bot.capital, 'date': bot.lastUpdate}, status = status.HTTP_200_OK)
 
 @api_view(['POST', 'GET'])
 @permission_classes((AllowAny, ))
@@ -65,7 +65,8 @@ def trade(request):
             "symbol": action.symbol,
             "action": action.action,
             "volume": action.volume,
-            "averagePrice": action.averagePrice
+            "averagePrice": action.averagePrice,
+            "date": action.date
         } for action in actions]
         return JsonResponse({"actions":actions}, status = status.HTTP_200_OK)
 
