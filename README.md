@@ -1,7 +1,13 @@
 # seniorProject
 
 
-## Prerequisite (Python package)
+## Prerequisite
+#### Software
+``` bash
+  cuda 9.0
+  cuDNN
+```
+#### Python package
 ###### pip install package==version
 ``` bash
   python 3.6.4
@@ -12,6 +18,7 @@
   pandas-datareader 0.6.0
   Keras 2.1.6
   gym 0.10.5
+  jupyter
 ```
 
 ## install our gym environment
