@@ -7,10 +7,10 @@
   cuda 9.0
   cuDNN
 ```
+#### Python3 based on [Anaconda3](https://www.anaconda.com/download/)
 #### Python package
-###### pip install package==version
+###### pip install package==version [pip3 for linux]
 ``` bash
-  python 3.6.4
   tensorflow 1.5.0
   tensorflow-gpu 1.8.0
   numpy 1.14.3
