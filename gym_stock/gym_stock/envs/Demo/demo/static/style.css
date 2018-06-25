@@ -11,7 +11,7 @@
 .scrollable {
     overflow-y: hidden;
     width: 100%;
-    height: calc(100vh - 130px);
+    height: calc(100% - 50px);
 }
 
 .scroll {
@@ -49,17 +49,17 @@
 }
 
 .action {
-    height: 600px;
+    height: calc(85vh + 16px);
     width: 300px;
 }
 
 .capital {
-    height: 302px;
+    height: 47vh;
 }
 
 .portfolio {
-    height: 290px;
-    margin-top: 8px;
+    height: 38vh;
+    margin-top: 16px;
     overflow: hidden;
 }
 
@@ -91,7 +91,7 @@
     display:block;
     width: 100%;
     overflow: auto;
-    height: 190px;
+    height: calc(100% - 50px);
 }
 
 .fixed_header thead tr {
