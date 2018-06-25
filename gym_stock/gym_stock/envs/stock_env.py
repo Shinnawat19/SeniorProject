@@ -125,6 +125,7 @@ class StockEnv(gym.Env):
 		if not self.is_portfolio_empty(index):
 			old_volume = self.portfolio[index]['Volume']
 			sell_volume = abs(round(old_volume * percentage))
+			new_volume = old_volume - sell_volume
 			if sell_volume != 0:
 				base_price = self.calculate_mean_open_close(index)
 
@@ -134,7 +135,10 @@ class StockEnv(gym.Env):
 						"volume": sell_volume, "averagePrice": base_price, "date": self.date}))
 
 				self.balance = self.balance + self.calculate_stock_price(self.SELL, base_price, sell_volume)
-				self.portfolio[index]['Volume'] = old_volume - sell_volume
+				self.portfolio[index]['Volume'] = new_volume
+				if new_volume == 0:
+					self.portfolio[index]['Average Price'] = 0
+				
 
 	def sendPortfolio(self):
 		portfolios = [{
