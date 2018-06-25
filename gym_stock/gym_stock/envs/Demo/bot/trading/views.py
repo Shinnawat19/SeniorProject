@@ -15,8 +15,9 @@ import datetime
 @permission_classes((AllowAny, ))
 def bot(request):
     if request.method == "POST":
-        name = JSONParser().parse(request)['name']
-        bot = BotDetail.objects.create(name=name, capital=1000000)
+        data = JSONParser().parse(request)
+        bot = BotDetail.objects.create(name=data['name'], capital=1000000)
+        bot.lastUpdate = datetime.datetime.strptime(data['date'], "%Y-%m-%d").date()
         bot.save()
 
         return JsonResponse({}, status = status.HTTP_200_OK)
