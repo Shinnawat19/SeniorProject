@@ -39,7 +39,8 @@ class StockEnv(gym.Env):
 	def create_bot(self, bot_name):
 		self.bot_name = bot_name
 		if self.set_demo:
-			conn = requests.post("http://localhost:8000/trading/bot", data = json.dumps({"name": self.bot_name}))
+			conn = requests.post("http://localhost:8000/trading/bot", 
+					data = json.dumps({"name": self.bot_name, "date": "2015-01-01"}))
 
 	def initialize_variable(self):
 		self.balance = 1000000.
@@ -107,14 +108,15 @@ class StockEnv(gym.Env):
 		if self.is_balance_enough(stock_price_with_commission):
 			self.balance = self.balance - stock_price_with_commission
 			old_volume = self.portfolio[index]['Volume']
-			if old_volume != 0:
-				old_price = self.portfolio[index]['Average Price']
-				base_price = self.calculate_new_average_price(old_volume, old_price, base_price, volume)
 
 			if self.set_demo:
 				conn = requests.post("http://localhost:8000/trading/trade", 
 					data = json.dumps({"name": self.bot_name, "symbol": self.SET50[index], "action": "BUY",
 					"volume": volume, "averagePrice": base_price, "date": self.date}))
+
+			if old_volume != 0:
+				old_price = self.portfolio[index]['Average Price']
+				base_price = self.calculate_new_average_price(old_volume, old_price, volume, base_price)
 
 			self.portfolio[index]['Average Price'] = base_price
 			self.portfolio[index]['Volume'] = old_volume + volume

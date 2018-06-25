@@ -4,7 +4,7 @@
     <div class="row margin-top-small">
       <div class="col-sm-3">
         <div class="item-block action">
-          <h3 class="block-title">Action histories</h3>
+          <h3 class="block-title">Action logs</h3>
           <div class="scrollable">
             <virtualList class="scroll" :size="40" :remain="8" :bench="32" :startIndex="0">
               <item  v-for="(action, index) in actions" :action="action" :key="index"></item>
@@ -72,33 +72,38 @@ export default {
     this.createChart()
 
     setInterval( async () => {
-      await this.getTradeAction()
-      await this.getPortfolio()
-      await this.getCash()
+      let tradeLog = this.getTradeAction()
+      let portfolio = this.getPortfolio()
+      let capital = this.getCapital()
+      await tradeLog.then(response => {
+        this.actions = response.data.actions
+      })
+      await portfolio.then(response => {
+        this.portfolios = response.data.portfolios
+      })
+      await capital.then(response => {
+        let date = moment(response.data.date).format('MM/DD/YYYY')
+        if(this.data.length == 0 || date !== this.data[this.data.length - 1].date) {
+          this.data.push({"date": date, "value": response.data.capital})
+          this.charts.validateData()
+        }
+      })
     }, 5000)
   },
   methods: {
     getTradeAction() {
-      axios.get('http://localhost:8000/trading/trade', {
+      return axios.get('http://localhost:8000/trading/trade', {
         params: { name: this.botName }
-      }).then(response => {
-        this.actions = response.data.actions
       })
     },
     getPortfolio() {
-      axios.get('http://localhost:8000/trading/portfolio', {
+      return axios.get('http://localhost:8000/trading/portfolio', {
         params: { name: this.botName }
-      }).then(response => {
-        this.portfolios = response.data.portfolios
       })
     },
-    getCash() {
-      axios.get('http://localhost:8000/trading/capital', {
+    getCapital() {
+      return axios.get('http://localhost:8000/trading/capital', {
         params: { name: this.botName }
-      }).then(response => {
-        let date = moment(response.data.date).format('MM/DD/YYYY')
-        this.data.push({"date": date, "value": response.data.capital})
-        this.charts.validateData()
       })
     },
     createChart () {

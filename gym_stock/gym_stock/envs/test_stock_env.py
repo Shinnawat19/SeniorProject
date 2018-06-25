@@ -33,7 +33,7 @@ s_dim = env.observation_space.shape[0]
 env.set_demo(is_demo)
 if is_demo:
     env.create_bot('botname')
-    time.sleep(4)
+    time.sleep(1)
 
 ddpg = DDPG(a_dim, s_dim, a_bound)
 
@@ -48,7 +48,6 @@ for i in range(epoch):
     while not done:
 
         a = ddpg.choose_action(s)
-        print(a)
         s_, r, done, info = env.step(a)
         if done:
             break
@@ -57,7 +56,7 @@ for i in range(epoch):
         s = s_
         ep_reward += r
         day += threshold
-
+        env.render()
         if is_demo:
             time.sleep(4)
     

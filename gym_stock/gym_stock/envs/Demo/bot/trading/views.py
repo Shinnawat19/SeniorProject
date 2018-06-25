@@ -98,7 +98,7 @@ def portfolio(request):
                 botPortfolio.volume = portfolio['volume']
                 botPortfolio.averagePrice = portfolio['averagePrice']
                 botPortfolio.marketPrice = portfolio['marketPrice']
-                botPortfolio.profit = portfolio['averagePrice'] - portfolio['marketPrice'] if portfolio['averagePrice'] != 0 else 0
+                botPortfolio.profit = portfolio['marketPrice'] - portfolio['averagePrice'] if portfolio['averagePrice'] != 0 else 0
                 botPortfolio.save()
             except:
                 botPortfolio = BotPortfolio.objects.create(name = bot,
